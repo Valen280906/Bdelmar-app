@@ -1,0 +1,87 @@
+/* ===================================================
+   B DEL MAR 3011 – Design Tokens (CSS Custom Properties)
+   Todos los componentes SOLO usan estas variables.
+   El store de Pinia actualiza :root en tiempo real.
+   =================================================== */
+
+:root {
+  /* --- PALETA ACTIVA (Modo Claro por defecto) --- */
+  --color-primary:        #1a91db;
+  --color-accent:         #db8b1a;
+  --color-secondary:      #3f8bba;
+  --color-bg-page:        #f0f2f5;
+  --color-bg-card:        #fafafa;
+  --color-text-primary:   #121212;
+  --color-text-secondary: #2c3e50;
+  --color-image-bg:       #d4dce4;
+
+  /* Sombras dinámicas derivadas del primary */
+  --shadow-sm:  0 4px 12px rgba(26, 145, 219, 0.12);
+  --shadow-md:  0 8px 24px rgba(26, 145, 219, 0.18);
+  --shadow-lg:  0 20px 40px rgba(26, 145, 219, 0.22);
+
+  /* --- TIPOGRAFÍA --- */
+  --font-size-h1:   2.4rem;
+  --font-size-h2:   1.6rem;
+  --font-size-h3:   1.2rem;
+  --font-size-p:    1rem;
+  --font-size-btn:  1rem;
+  --font-size-menu: 1rem;
+
+  --font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+  --radius-pill: 60px;
+
+  /* --- TRANSICIONES --- */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+}
+
+/* ======= RESET BASE ======= */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-p);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-page);
+  line-height: 1.6;
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+p  { font-size: var(--font-size-p); }
+
+/* Botones heredan tamaño de párrafo */
+button, .btn {
+  font-size: var(--font-size-btn);
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover { color: var(--color-accent); }
+
+/* SVG icons heredan color de texto */
+svg {
+  fill: currentColor;
+}
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-page); }
+::-webkit-scrollbar-thumb { background: var(--color-primary); border-radius: 4px; }
