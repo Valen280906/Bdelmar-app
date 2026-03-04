@@ -33,14 +33,12 @@ const quickLinks = [
         <!-- Columna 1: Branding -->
         <div class="footer-col footer-brand-col">
           <div class="footer-logo">
-            <svg width="40" height="40" viewBox="0 0 48 48">
-              <circle cx="24" cy="24" r="22" fill="var(--color-primary)" opacity="0.2"/>
-              <path d="M8 26C12 18 20 14 24 20C28 14 36 18 40 26C36 34 28 38 24 32C20 38 12 34 8 26Z" fill="var(--color-primary)"/>
-              <circle cx="17" cy="23" r="2" fill="white"/>
-            </svg>
+            <div class="footer-logo-circle">
+              <img src="@/assets/bdelmar_logo.png" alt="Logo B-DEL MAR 3011" class="footer-logo-img" />
+            </div>
             <div>
-              <div class="footer-logo-name">B DEL MAR</div>
-              <div class="footer-logo-number">3011</div>
+              <div class="footer-logo-name">Dist. y Comercializadora</div>
+              <div class="footer-logo-number">B-DEL MAR 3011 C.A</div>
             </div>
           </div>
           <p class="footer-tagline">
@@ -101,7 +99,7 @@ const quickLinks = [
 
     <div class="footer-bottom">
       <div class="footer-container">
-        <p>© 2026 B DEL MAR 3011 · Distribuidora y Comercializadora de Mariscos</p>
+        <p>© 2026 Distribuidora y Comercializadora B-DEL MAR 3011 C.A · Todos los derechos reservados</p>
         <p class="footer-rights">Todos los derechos reservados</p>
       </div>
     </div>
@@ -133,13 +131,19 @@ const quickLinks = [
   display: flex; align-items: center; gap: 0.75rem;
   margin-bottom: 1rem;
 }
+.footer-logo-circle {
+  width: 56px; height: 56px; border-radius: 50%;
+  overflow: hidden; flex-shrink: 0;
+  background: transparent;
+}
+.footer-logo-img { width: 100%; height: 100%; object-fit: cover; }
 .footer-logo-name {
-  font-size: 1.2rem; font-weight: 800;
-  color: var(--color-primary); letter-spacing: 3px;
+  font-size: 0.8rem; font-weight: 800;
+  color: var(--color-primary); letter-spacing: 1px;
 }
 .footer-logo-number {
-  font-size: 0.75rem; font-weight: 600;
-  color: var(--color-accent); letter-spacing: 5px;
+  font-size: 0.95rem; font-weight: 700;
+  color: var(--color-primary); letter-spacing: 1px;
 }
 .footer-tagline {
   font-size: 0.83rem;

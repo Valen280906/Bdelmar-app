@@ -3,6 +3,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
     {
+        path: '/',
+        name: 'Landing',
+        component: () => import('../views/public/HomeView.vue'),
+        // No requiere Auth, es pública.
+    },
+    {
         path: '/login',
         name: 'Login',
         component: () => import('../views/LoginView.vue'),
@@ -24,14 +30,14 @@ const routes = [
         ],
     },
     {
-        path: '/',
-        name: 'Home',
+        path: '/catalogo',
+        name: 'Catalogo',
         component: () => import('../views/user/UserView.vue'),
         meta: { requiresAuth: true },
     },
     {
         path: '/:pathMatch(.*)*',
-        redirect: '/login',
+        redirect: '/', // Redirigir siempre a la Landing si no encuentra la ruta
     },
 ]
 
@@ -45,18 +51,25 @@ router.beforeEach((to, from, next) => {
     const role = localStorage.getItem('bdelmar_role') // 'admin' | 'user' | null
 
     if (to.name === 'Login') {
-        // Si ya está logueado, redirigir a su vista
+        // Si ya está logueado, redirigir a su vista interna correspondiente
         if (role === 'admin') return next('/admin')
-        if (role === 'user') return next('/')
+        if (role === 'user') return next('/catalogo')
         return next()
     }
 
+    // Rutas públicas (no se exige role)
+    if (to.name === 'Landing') {
+        return next()
+    }
+
+    // Para cualquier otra ruta que no sea login o landing, se requiere rol
     if (!role) {
         return next('/login')
     }
 
+    // Bloqueos por permisos
     if (to.meta.requiresAdmin && role !== 'admin') {
-        return next('/')
+        return next('/catalogo')
     }
 
     next()

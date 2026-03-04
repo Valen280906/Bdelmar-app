@@ -23,15 +23,7 @@ const navLinks = [
     <div class="header-inner">
       <!-- Logo -->
       <a href="#inicio" class="header-logo">
-        <svg width="36" height="36" viewBox="0 0 48 48">
-          <circle cx="24" cy="24" r="22" fill="var(--color-primary)" opacity="0.15"/>
-          <path d="M8 26C12 18 20 14 24 20C28 14 36 18 40 26C36 34 28 38 24 32C20 38 12 34 8 26Z" fill="var(--color-primary)"/>
-          <circle cx="17" cy="23" r="2" fill="white"/>
-        </svg>
-        <div class="logo-text">
-          <span class="logo-main">B DEL MAR</span>
-          <span class="logo-number">3011</span>
-        </div>
+        <img src="@/assets/bdelmar_logo.png" alt="B-DEL MAR 3011 C.A" class="logo-img" />
       </a>
 
       <!-- Nav Desktop -->
@@ -97,23 +89,11 @@ const navLinks = [
 .header-logo {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
   text-decoration: none;
   flex-shrink: 0;
 }
-.logo-text { display: flex; flex-direction: column; line-height: 1.1; }
-.logo-main {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--color-primary);
-  letter-spacing: 2px;
-}
-.logo-number {
-  font-size: 0.72rem;
-  color: var(--color-accent);
-  font-weight: 600;
-  letter-spacing: 4px;
-}
+.logo-img { width: 60px; height: 60px; object-fit: contain; transition: transform 0.2s; }
+.logo-img:hover { transform: scale(1.05); }
 
 /* Desktop nav */
 .desktop-nav {

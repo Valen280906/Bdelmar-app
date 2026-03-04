@@ -26,12 +26,8 @@ function logout() {
     <aside class="sidebar" :class="{ collapsed: !sidebarOpen }">
       <div class="sidebar-header">
         <div class="sidebar-brand" v-if="sidebarOpen">
-          <svg width="32" height="32" viewBox="0 0 48 48">
-            <circle cx="24" cy="24" r="22" fill="var(--color-primary)" opacity="0.2"/>
-            <path d="M8 26C12 18 20 14 24 20C28 14 36 18 40 26C36 34 28 38 24 32C20 38 12 34 8 26Z" fill="var(--color-primary)"/>
-            <circle cx="17" cy="23" r="2" fill="white"/>
-          </svg>
-          <span class="brand-text">B DEL MAR <strong>3011</strong></span>
+          <img src="@/assets/bdelmar_logo.png" alt="Logo" class="sidebar-logo-img" />
+          <span class="brand-text">Dist. y Com. <strong>B-DEL MAR 3011 C.A</strong></span>
         </div>
         <button class="toggle-btn" @click="sidebarOpen = !sidebarOpen">
           <svg width="20" height="20" viewBox="0 0 24 24">
@@ -123,13 +119,16 @@ function logout() {
   overflow: hidden;
   flex: 1;
 }
+.sidebar-logo-img { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .brand-text {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.brand-text strong { color: var(--color-primary); font-size: 0.95rem; }
+.brand-text strong { color: var(--color-primary); font-size: 0.82rem; }
 
 .toggle-btn {
   background: none;

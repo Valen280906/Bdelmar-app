@@ -1,40 +1,236 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
+
+// Estados: 'login', 'register', 'forgot', 'verify', 'reset'
+const mode = ref(route.query.mode || 'login')
+
+// Formulario
 const username = ref('')
+const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
+const code = ref('')
 const error = ref('')
+const success = ref('')
 const loading = ref(false)
 
-// Credenciales mock
-const USERS = {
-  admin: { password: 'admin', role: 'admin' },
-  user:  { password: 'user',  role: 'user'  },
-}
+const API_BASE = 'http://localhost:3001/api'
 
+// Validaciones de contraseña
+const pwdRules = computed(() => {
+  const p = password.value
+  const u = username.value.toLowerCase()
+  const e = email.value.split('@')[0].toLowerCase()
+
+  const lengthOk = p.length >= 8 && p.length <= 64
+  const upperOk = /[A-Z]/.test(p)
+  const lowerOk = /[a-z]/.test(p)
+  const numOk = /[0-9]/.test(p)
+  const specialOk = /[@#$%^&+=*!_?-]/.test(p)
+  
+  // No contener info personal (username o inicio del email)
+  let noPersonaInfo = true
+  if (p.length > 0) {
+    if (u && u.length > 2 && p.toLowerCase().includes(u)) noPersonaInfo = false
+    if (e && e.length > 2 && p.toLowerCase().includes(e)) noPersonaInfo = false
+  }
+
+  return { lengthOk, upperOk, lowerOk, numOk, specialOk, noPersonaInfo }
+})
+
+const pwdStrength = computed(() => {
+  if (!password.value) return 0
+  const r = pwdRules.value
+  let score = 0
+  if (r.lengthOk) score++
+  if (r.upperOk && r.lowerOk) score++
+  if (r.numOk) score++
+  if (r.specialOk) score++
+  if (r.noPersonaInfo) score++
+  return score // 0 a 5
+})
+
+const strengthLabel = computed(() => {
+  const s = pwdStrength.value
+  if (s === 0) return ''
+  if (s <= 2) return 'Débil'
+  if (s <= 3) return 'Regular'
+  if (s === 4) return 'Buena'
+  return 'Fuerte'
+})
+
+const strengthColor = computed(() => {
+  const s = pwdStrength.value
+  if (s <= 2) return '#ff4d4f' // Rojo
+  if (s <= 3) return '#faad14' // Amarillo
+  if (s === 4) return '#52c41a' // Verde claro
+  return '#1890ff' // Azul / Fuerte
+})
+
+// Acciones API
 async function handleLogin() {
   error.value = ''
+  success.value = ''
   loading.value = true
 
-  await new Promise(r => setTimeout(r, 600)) // simular latencia
-
-  const found = USERS[username.value.toLowerCase()]
-  if (found && found.password === password.value) {
-    localStorage.setItem('bdelmar_role', found.role)
-    if (found.role === 'admin') router.push('/admin')
-    else router.push('/')
-  } else {
-    error.value = 'Usuario o contraseña incorrectos'
+  try {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username.value, password: password.value })
+    })
+    const data = await res.json()
+    if (data.success) {
+      localStorage.setItem('bdelmar_role', data.data.role)
+      if (data.data.role === 'admin') router.push('/admin')
+      else router.push('/')
+    } else {
+      error.value = data.error
+    }
+  } catch (err) {
+    error.value = 'Error de conexión'
   }
   loading.value = false
+}
+
+async function handleRegister() {
+  error.value = ''
+  success.value = ''
+  
+  if (password.value !== confirmPassword.value) {
+    error.value = 'Las contraseñas no coinciden'
+    return
+  }
+  if (pwdStrength.value < 4) {
+    error.value = 'La contraseña no cumple con los requisitos de seguridad'
+    return
+  }
+
+  loading.value = true
+  try {
+    const res = await fetch(`${API_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username.value, email: email.value, password: password.value })
+    })
+    const data = await res.json()
+    if (data.success) {
+      success.value = 'Registro exitoso. Ya puedes iniciar sesión.'
+      clearForm()
+      mode.value = 'login'
+    } else {
+      error.value = data.error
+    }
+  } catch (err) {
+    error.value = 'Error de conexión'
+  }
+  loading.value = false
+}
+
+async function handleForgot() {
+  error.value = ''
+  success.value = ''
+  loading.value = true
+  try {
+    const res = await fetch(`${API_BASE}/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value })
+    })
+    const data = await res.json()
+    if (data.success) {
+      success.value = data.message + (data.code_for_demo ? ` (Demo: ${data.code_for_demo})` : '')
+      mode.value = 'verify'
+    } else {
+      error.value = data.error
+    }
+  } catch (err) {
+    error.value = 'Error de conexión'
+  }
+  loading.value = false
+}
+
+async function handleVerify() {
+  error.value = ''
+  success.value = ''
+  loading.value = true
+  try {
+    const res = await fetch(`${API_BASE}/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value, code: code.value })
+    })
+    const data = await res.json()
+    if (data.success) {
+      success.value = 'Código verificado. Ingresa tu nueva contraseña.'
+      mode.value = 'reset'
+      password.value = ''
+      confirmPassword.value = ''
+    } else {
+      error.value = data.error
+    }
+  } catch (err) {
+    error.value = 'Error de conexión'
+  }
+  loading.value = false
+}
+
+async function handleReset() {
+  error.value = ''
+  success.value = ''
+  
+  if (password.value !== confirmPassword.value) {
+    error.value = 'Las contraseñas no coinciden'
+    return
+  }
+  if (pwdStrength.value < 4) {
+    error.value = 'La contraseña no cumple con los requisitos de seguridad'
+    return
+  }
+
+  loading.value = true
+  try {
+    const res = await fetch(`${API_BASE}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value, code: code.value, newPassword: password.value })
+    })
+    const data = await res.json()
+    if (data.success) {
+      success.value = 'Contraseña actualizada correctamente. Inicia sesión.'
+      clearForm()
+      mode.value = 'login'
+    } else {
+      error.value = data.error
+    }
+  } catch (err) {
+    error.value = 'Error de conexión'
+  }
+  loading.value = false
+}
+
+function clearForm() {
+  username.value = ''
+  password.value = ''
+  confirmPassword.value = ''
+  code.value = ''
+  error.value = ''
+}
+
+function switchMode(newMode) {
+  clearForm()
+  error.value = ''
+  success.value = ''
+  mode.value = newMode
 }
 </script>
 
 <template>
   <div class="login-page">
-    <!-- Fondo animado con olas -->
     <div class="ocean-bg">
       <div class="wave wave1"></div>
       <div class="wave wave2"></div>
@@ -42,71 +238,204 @@ async function handleLogin() {
     </div>
 
     <div class="login-card">
-      <!-- Logo / Branding -->
       <div class="brand">
         <div class="brand-icon">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <circle cx="24" cy="24" r="22" fill="var(--color-primary)" opacity="0.15"/>
-            <path d="M8 26 C12 18, 20 14, 24 20 C28 14, 36 18, 40 26 C36 34, 28 38, 24 32 C20 38, 12 34, 8 26Z"
-                  fill="var(--color-primary)"/>
-            <circle cx="17" cy="23" r="2" fill="white"/>
-          </svg>
+          <img src="@/assets/bdelmar_logo.png" alt="B-DEL MAR 3011 C.A" class="login-logo-img" />
         </div>
-        <h1 class="brand-title">B DEL MAR</h1>
-        <span class="brand-sub">3011</span>
-        <p class="brand-desc">Distribuidora y Comercializadora de Mariscos</p>
+        <h1 class="brand-title">
+          <span v-if="mode === 'login'">Inicio de sesión</span>
+          <span v-else-if="mode === 'register'">Crear Cuenta</span>
+          <span v-else-if="mode === 'forgot'">Recuperar Acceso</span>
+          <span v-else-if="mode === 'verify'">Verificar Código</span>
+          <span v-else-if="mode === 'reset'">Nueva Contraseña</span>
+        </h1>
       </div>
 
-      <!-- Formulario -->
-      <form @submit.prevent="handleLogin" class="login-form">
+      <!-- Notificaciones -->
+      <div v-if="error" class="alert error-msg">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        {{ error }}
+      </div>
+      <div v-if="success" class="alert success-msg">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        {{ success }}
+      </div>
+
+      <!-- MODO: LOGIN -->
+      <form v-if="mode === 'login'" @submit.prevent="handleLogin" class="login-form">
         <div class="field-group">
-          <label for="username">Usuario</label>
+          <label for="username">Usuario o Correo</label>
           <div class="input-wrapper">
-            <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24">
-              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-            </svg>
-            <input
-              id="username"
-              v-model="username"
-              type="text"
-              placeholder="Ingresa tu usuario"
-              autocomplete="username"
-              required
-            />
+            <input id="username" v-model="username" type="text" placeholder="Ingresa tu usuario" required />
           </div>
         </div>
-
         <div class="field-group">
-          <label for="password">Contraseña</label>
+          <div class="label-row">
+            <label for="password">Contraseña</label>
+            <a href="#" class="forgot-link" @click.prevent="switchMode('forgot')">¿Olvidaste tu contraseña?</a>
+          </div>
           <div class="input-wrapper">
-            <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24">
-              <path d="M18 8h-1V6c0-2.8-2.2-5-5-5S7 3.2 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.7 1.4-3.1 3.1-3.1 1.7 0 3.1 1.4 3.1 3.1v2z"/>
-            </svg>
-            <input
-              id="password"
-              v-model="password"
-              type="password"
-              placeholder="Ingresa tu contraseña"
-              autocomplete="current-password"
-              required
-            />
+            <input id="password" v-model="password" type="password" placeholder="Ingresa tu contraseña" required />
+          </div>
+          
+          <!-- Validaciones visuales simplificadas para inicio de sesión -->
+          <div v-if="password && pwdStrength < 4" class="simple-error-msg">
+            <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            <span>La contraseña no cumple con las validaciones básicas de seguridad.</span>
           </div>
         </div>
-
-        <div v-if="error" class="error-msg">
-          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-          {{ error }}
-        </div>
-
-        <button type="submit" class="btn-login" :disabled="loading">
+        <button type="submit" class="btn-primary" :disabled="loading">
           <span v-if="!loading">Ingresar</span>
+          <span v-else class="spinner"></span>
+        </button>
+        <p class="switch-mode">
+          ¿No tienes cuenta? <a href="#" @click.prevent="switchMode('register')">Regístrate</a>
+        </p>
+        
+        <div class="form-footer-actions">
+          <a href="#" @click.prevent="router.push('/')" class="back-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            Volver a la página principal
+          </a>
+        </div>
+      </form>
+
+      <!-- MODO: REGISTRO -->
+      <form v-if="mode === 'register'" @submit.prevent="handleRegister" class="login-form">
+        <div class="field-group">
+          <label>Usuario</label>
+          <div class="input-wrapper"><input v-model="username" type="text" placeholder="Elige un usuario" required /></div>
+        </div>
+        <div class="field-group">
+          <label>Correo Electrónico</label>
+          <div class="input-wrapper"><input v-model="email" type="email" placeholder="tu@correo.com" required /></div>
+        </div>
+        <div class="field-group">
+          <label>Contraseña</label>
+          <div class="input-wrapper"><input v-model="password" type="password" placeholder="Crea una contraseña segura" required /></div>
+          
+          <!-- Medidor de Fuerza de Contraseña -->
+          <div class="password-strength" v-if="password">
+            <div class="strength-bar-bg">
+              <div class="strength-bar-fill" :style="{ width: `${(pwdStrength / 5) * 100}%`, background: strengthColor }"></div>
+            </div>
+            <span class="strength-label" :style="{ color: strengthColor }">{{ strengthLabel }}</span>
+            <ul class="pwd-rules">
+              <li :class="{ ok: pwdRules.lengthOk }">Mínimo 8 caracteres</li>
+              <li :class="{ ok: pwdRules.upperOk && pwdRules.lowerOk }">Mayúsculas y minúsculas</li>
+              <li :class="{ ok: pwdRules.numOk }">Al menos un número</li>
+              <li :class="{ ok: pwdRules.specialOk }">Carácter especial (@, #, $, etc.)</li>
+              <li :class="{ ok: pwdRules.noPersonaInfo }">No incluir datos personales</li>
+            </ul>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Confirmar Contraseña</label>
+          <div class="input-wrapper"><input v-model="confirmPassword" type="password" placeholder="Repite la contraseña" required /></div>
+        </div>
+        <button type="submit" class="btn-primary" :disabled="loading">
+          <span v-if="!loading">Crear Cuenta</span>
+          <span v-else class="spinner"></span>
+        </button>
+        <p class="switch-mode">
+          ¿Ya tienes cuenta? <a href="#" @click.prevent="switchMode('login')">Inicia sesión</a>
+        </p>
+
+        <div class="form-footer-actions">
+          <a href="#" @click.prevent="router.push('/')" class="back-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            Volver a la página principal
+          </a>
+        </div>
+      </form>
+
+      <!-- MODO: FORGOT PASSWORD -->
+      <form v-if="mode === 'forgot'" @submit.prevent="handleForgot" class="login-form">
+        <p class="form-desc">Ingresa tu correo electrónico y te enviaremos un código de verificación.</p>
+        <div class="field-group">
+          <label>Correo Electrónico</label>
+          <div class="input-wrapper"><input v-model="email" type="email" placeholder="tu@correo.com" required /></div>
+        </div>
+        <button type="submit" class="btn-primary" :disabled="loading">
+          <span v-if="!loading">Enviar Código</span>
+          <span v-else class="spinner"></span>
+        </button>
+        <p class="switch-mode">
+          <a href="#" @click.prevent="switchMode('login')">Volver al inicio de sesión</a>
+        </p>
+
+        <div class="form-footer-actions">
+          <a href="#" @click.prevent="router.push('/')" class="back-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            Volver a la página principal
+          </a>
+        </div>
+      </form>
+
+      <!-- MODO: VERIFY CODE -->
+      <form v-if="mode === 'verify'" @submit.prevent="handleVerify" class="login-form">
+        <p class="form-desc">Hemos enviado un código a <strong>{{ email }}</strong>.</p>
+        <div class="field-group">
+          <label>Código de Seguridad</label>
+          <div class="input-wrapper"><input v-model="code" type="text" placeholder="123456" required class="text-center code-input" maxlength="6"/></div>
+        </div>
+        <button type="submit" class="btn-primary" :disabled="loading">
+          <span v-if="!loading">Verificar Código</span>
+          <span v-else class="spinner"></span>
+        </button>
+        <p class="switch-mode">
+          <a href="#" @click.prevent="switchMode('login')">Cancelar</a>
+        </p>
+
+        <div class="form-footer-actions">
+          <a href="#" @click.prevent="router.push('/')" class="back-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            Volver a la página principal
+          </a>
+        </div>
+      </form>
+
+      <!-- MODO: RESET PASSWORD -->
+      <form v-if="mode === 'reset'" @submit.prevent="handleReset" class="login-form">
+        <div class="field-group">
+          <label>Nueva Contraseña</label>
+          <div class="input-wrapper"><input v-model="password" type="password" placeholder="Crea una contraseña segura" required /></div>
+          
+          <div class="password-strength" v-if="password">
+            <div class="strength-bar-bg">
+              <div class="strength-bar-fill" :style="{ width: `${(pwdStrength / 5) * 100}%`, background: strengthColor }"></div>
+            </div>
+            <ul class="pwd-rules">
+              <li :class="{ ok: pwdRules.lengthOk }">Mínimo 8 caracteres</li>
+              <li :class="{ ok: pwdRules.upperOk && pwdRules.lowerOk }">Mayúsculas y minúsculas</li>
+              <li :class="{ ok: pwdRules.numOk }">Al menos un número</li>
+              <li :class="{ ok: pwdRules.specialOk }">Carácter especial (@, #, $)</li>
+              <li :class="{ ok: pwdRules.noPersonaInfo }">No incluir datos personales</li>
+            </ul>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Confirmar Contraseña</label>
+          <div class="input-wrapper"><input v-model="confirmPassword" type="password" placeholder="Repite la contraseña" required /></div>
+        </div>
+        <button type="submit" class="btn-primary" :disabled="loading">
+          <span v-if="!loading">Cambiar Contraseña</span>
           <span v-else class="spinner"></span>
         </button>
       </form>
 
-      <p class="login-hint">
-        Demo: <strong>admin / admin</strong> &nbsp;|&nbsp; <strong>user / user</strong>
-      </p>
     </div>
   </div>
 </template>
@@ -114,24 +443,46 @@ async function handleLogin() {
 <style scoped>
 .login-page {
   min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0f3460 0%, #16213e 40%, #0a1628 100%);
+  position: relative; overflow: hidden;
+  padding: 1rem;
+}
+
+/* === BOTÓN VOLVER INICIO === */
+.form-footer-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+}
+
+.back-link {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #0f3460 0%, #16213e 40%, #0a1628 100%);
-  position: relative;
-  overflow: hidden;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.back-link:hover {
+  color: white;
+  transform: translateY(-1px);
+}
+
+.back-link svg {
+  opacity: 0.8;
 }
 
 /* === OLAS ANIMADAS === */
 .ocean-bg { position: absolute; inset: 0; pointer-events: none; }
 .wave {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 160px;
-  background: rgba(26, 145, 219, 0.08);
-  border-radius: 50% 50% 0 0;
+  position: absolute; bottom: 0; left: 0; width: 200%; height: 160px;
+  background: rgba(26, 145, 219, 0.08); border-radius: 50% 50% 0 0;
   animation: wave-anim 8s ease-in-out infinite;
 }
 .wave2 { height: 120px; background: rgba(26,145,219,0.05); animation-duration: 11s; animation-delay: -3s; }
@@ -140,14 +491,9 @@ async function handleLogin() {
   0%, 100% { transform: translateX(0) scaleY(1); }
   50%       { transform: translateX(-25%) scaleY(1.12); }
 }
-
-/* Partículas flotantes */
 .ocean-bg::before, .ocean-bg::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(26, 145, 219, 0.12);
-  animation: float 6s ease-in-out infinite;
+  content: ''; position: absolute; border-radius: 50%;
+  background: rgba(26, 145, 219, 0.12); animation: float 6s ease-in-out infinite;
 }
 .ocean-bg::before { width: 300px; height: 300px; top: -80px; right: -80px; animation-delay: -2s; }
 .ocean-bg::after  { width: 200px; height: 200px; bottom: 40px; left: -60px; animation-duration: 8s; }
@@ -159,147 +505,86 @@ async function handleLogin() {
 /* === CARD === */
 .login-card {
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 28px;
   padding: 2.8rem 2.4rem;
-  width: 100%;
-  max-width: 420px;
+  width: 100%; max-width: 420px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  position: relative;
-  z-index: 1;
+  position: relative; z-index: 1;
 }
 
 /* === BRANDING === */
-.brand {
-  text-align: center;
-  margin-bottom: 2rem;
-}
+.brand { text-align: center; margin-bottom: 2rem; }
 .brand-icon { margin-bottom: 0.5rem; }
+.login-logo-img { width: 100px; height: 100px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
 .brand-title {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 3px;
-  line-height: 1;
-}
-.brand-sub {
-  display: block;
-  font-size: 1rem;
-  font-weight: 400;
-  color: var(--color-primary, #1a91db);
-  letter-spacing: 6px;
-  margin-top: 2px;
-}
-.brand-desc {
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.5);
-  margin-top: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  font-size: 1.6rem; font-weight: 800; color: #ffffff;
+  letter-spacing: 1px; line-height: 1;
 }
 
 /* === FORM === */
 .login-form { display: flex; flex-direction: column; gap: 1.2rem; }
+.form-desc { font-size: 0.88rem; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.5; margin-bottom: -0.5rem; }
+.field-group label { display: block; font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 0.4rem; }
+.label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.label-row label { margin: 0; }
+.forgot-link { font-size: 0.75rem; color: var(--color-primary, #1a91db); text-decoration: none; font-weight: 600; transition: color 0.15s; }
+.forgot-link:hover { color: white; }
 
-.field-group label {
-  display: block;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.7);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 0.4rem;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.input-icon {
-  position: absolute;
-  left: 14px;
-  fill: rgba(255,255,255,0.4);
-  pointer-events: none;
-  flex-shrink: 0;
-}
 .input-wrapper input {
   width: 100%;
-  padding: 0.85rem 1rem 0.85rem 2.8rem;
+  padding: 0.9rem 1rem;
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 12px;
-  color: #ffffff;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.2s, background 0.2s;
-  outline: none;
+  border-radius: 12px; color: #ffffff; font-size: 1rem; font-family: inherit;
+  transition: border-color 0.2s, background 0.2s; outline: none;
 }
 .input-wrapper input::placeholder { color: rgba(255,255,255,0.3); }
-.input-wrapper input:focus {
-  border-color: var(--color-primary, #1a91db);
-  background: rgba(26, 145, 219, 0.1);
-}
+.input-wrapper input:focus { border-color: var(--color-primary, #1a91db); background: rgba(26, 145, 219, 0.1); }
+.text-center { text-align: center; letter-spacing: 4px; font-weight: 700; font-size: 1.2rem !important; }
 
-/* === ERROR === */
-.error-msg {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.7rem 1rem;
-  background: rgba(220, 50, 50, 0.15);
-  border: 1px solid rgba(220,50,50,0.3);
-  border-radius: 10px;
-  color: #ff8080;
-  font-size: 0.88rem;
-}
-.error-msg svg { fill: #ff8080; flex-shrink: 0; }
+/* === MEDIDOR DE CONTRASEÑA === */
+.password-strength { margin-top: 0.8rem; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1rem; border: 1px solid rgba(255,255,255,0.05); }
+.strength-bar-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 0.4rem; }
+.strength-bar-fill { height: 100%; transition: width 0.3s ease, background 0.3s ease; }
+.strength-label { display: block; font-size: 0.75rem; font-weight: 700; text-align: right; margin-bottom: 0.6rem; text-transform: uppercase; }
+.pwd-rules { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.pwd-rules li { font-size: 0.75rem; color: #ff4d4f; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+.pwd-rules li::before { content: '○'; font-size: 0.8rem; }
+.pwd-rules li.ok { color: #52c41a; }
+.pwd-rules li.ok::before { content: '●'; }
 
-/* === BOTÓN === */
-.btn-login {
+.simple-error-msg { display: flex; align-items: flex-start; gap: 6px; margin-top: 0.5rem; font-size: 0.75rem; color: #ff4d4f; line-height: 1.3; }
+.simple-error-msg svg { fill: #ff4d4f; flex-shrink: 0; margin-top: 1px; }
+
+/* === ALERTS === */
+.alert { display: flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.85rem; font-weight: 600; }
+.alert svg { flex-shrink: 0; }
+.error-msg { background: rgba(220, 50, 50, 0.15); border: 1px solid rgba(220,50,50,0.3); color: #ff8080; }
+.error-msg svg { fill: #ff8080; }
+.success-msg { background: rgba(82, 196, 26, 0.15); border: 1px solid rgba(82,196,26,0.3); color: #73d13d; }
+.success-msg svg { fill: #73d13d; }
+
+/* === BOTONES Y LINKS === */
+.btn-primary {
   padding: 1rem;
   background: linear-gradient(135deg, var(--color-primary, #1a91db), var(--color-secondary, #3f8bba));
-  border: none;
-  border-radius: var(--radius-pill, 60px);
-  color: white;
-  font-size: 1rem;
-  font-weight: 700;
-  font-family: inherit;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-  box-shadow: 0 6px 20px rgba(26, 145, 219, 0.4);
-  margin-top: 0.4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 52px;
+  border: none; border-radius: 60px; color: white; font-size: 1rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s; margin-top: 0.4rem;
+  display: flex; align-items: center; justify-content: center; min-height: 52px;
 }
-.btn-login:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(26, 145, 219, 0.55);
-}
-.btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(26, 145, 219, 0.45); }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.switch-mode { text-align: center; margin-top: 0.5rem; font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+.switch-mode a { color: var(--color-primary, #1a91db); font-weight: 700; text-decoration: none; transition: color 0.15s; }
+.switch-mode a:hover { color: white; }
 
 .spinner {
-  width: 20px; height: 20px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  display: inline-block;
+  width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white;
+  border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* === HINT === */
-.login-hint {
-  text-align: center;
-  margin-top: 1.4rem;
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.35);
-}
-.login-hint strong { color: rgba(255,255,255,0.55); }
 </style>
