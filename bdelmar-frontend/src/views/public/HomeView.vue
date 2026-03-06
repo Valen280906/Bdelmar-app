@@ -4,16 +4,6 @@ import LandingBanner from '@/components/public/LandingBanner.vue'
 import LandingNosotros from '@/components/public/LandingNosotros.vue'
 import LandingServices from '@/components/public/LandingServices.vue'
 import LandingFooter from '@/components/public/LandingFooter.vue'
-import LegalModal from '@/components/public/LegalModal.vue'
-import { ref } from 'vue'
-
-const isLegalOpen = ref(false)
-const legalSection = ref('terminos')
-
-function handleOpenLegal(section) {
-  legalSection.value = section
-  isLegalOpen.value = true
-}
 </script>
 
 <template>
@@ -26,13 +16,7 @@ function handleOpenLegal(section) {
       <LandingServices />
     </main>
 
-    <LandingFooter @open-legal="handleOpenLegal" />
-    
-    <LegalModal 
-      :is-open="isLegalOpen" 
-      :initial-section="legalSection" 
-      @close="isLegalOpen = false" 
-    />
+    <LandingFooter />
   </div>
 </template>
 

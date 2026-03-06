@@ -1,35 +1,143 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
+import { useToast } from '../../composables/useToast.js'
 import PaletteEditor from '../../components/admin/PaletteEditor.vue'
 import TypographyEditor from '../../components/admin/TypographyEditor.vue'
 import StylePreview from '../../components/admin/StylePreview.vue'
+import FontManager from '../../components/admin/FontManager.vue'
+import EditPaletteModal from '../../components/admin/EditPaletteModal.vue'
+import ConfirmDialog from '../../components/shared/ConfirmDialog.vue'
 
 const themeStore = useThemeStore()
 const state = themeStore.state
+const { success, error, info } = useToast()
 
+// --- Tabs
+const activeTab = ref('paletas') // 'paletas' | 'editor' | 'tipografia' | 'fuentes'
+
+// --- Paleta nueva
 const newPaletteName = ref('')
+const newPaletteType = ref('claro')
 const showSaveDialog = ref(false)
 
+// --- Editar paleta
+const showEditModal  = ref(false)
+const editingId      = ref(null)
+
+// --- Eliminar paleta
+const showDeleteConfirm = ref(false)
+const deletingPaleta    = ref(null)
+
+// --- Draft (preview provisional)
+const hasDraft       = ref(false)
+const showApplyConfirm = ref(false)
+
+// --- Tipos legibles
+const TYPE_LABELS   = { claro: '☀ Claro', oscuro: '🌙 Oscuro', daltonico: '◉ Daltonismo' }
+const TYPE_CLASSES  = { claro: 'badge-type--claro', oscuro: 'badge-type--oscuro', daltonico: 'badge-type--daltonico' }
+
+function canEdit(paleta)   { return !paleta.isDefault && !paleta.active }
+function canDelete(paleta) { return !paleta.isDefault && !paleta.active }
+
+// --- Guardar nueva paleta
 function saveNewPalette() {
-  const name = newPaletteName.value.trim() || `Paleta ${state.nextId}`
-  themeStore.guardarPaletaActual(name)
+  const nm = newPaletteName.value.trim() || `Paleta ${state.nextId}`
+  const id = themeStore.guardarPaletaActual(nm, newPaletteType.value)
+  success(`Paleta "${nm}" guardada exitosamente`)
   newPaletteName.value = ''
+  newPaletteType.value = 'claro'
   showSaveDialog.value = false
+}
+
+// --- Activar paleta
+function activar(paleta) {
+  themeStore.activarPaleta(paleta.id)
+  success(`Paleta "${paleta.name}" aplicada en el sitio`)
+}
+
+// --- Editar o Crear paleta
+function openEdit(paleta) {
+  editingId.value = paleta.id
+  showEditModal.value = true
+}
+
+function openCreate() {
+  editingId.value = null
+  showEditModal.value = true
+}
+
+function onPaletteCreated(nuevaPaleta) {
+  themeStore.persistToStorage()
+}
+
+// --- Eliminar paleta (doble confirmación)
+function requestDelete(paleta) {
+  deletingPaleta.value = paleta
+  showDeleteConfirm.value = true
+}
+
+function confirmDelete() {
+  const p = deletingPaleta.value
+  const backup = themeStore.eliminarPaleta(p.id)
+  if (backup) {
+    success(
+      `Paleta "${p.name}" eliminada`,
+      'success',
+      () => {
+        themeStore.restaurarPaleta(backup)
+        info(`Paleta "${p.name}" restaurada`)
+      }
+    )
+  } else {
+    error('No se puede eliminar esta paleta')
+  }
+  showDeleteConfirm.value = false
+  deletingPaleta.value = null
+}
+
+// --- Draft / Preview provisional
+function onColorChanged() {
+  hasDraft.value = true
+}
+
+function requestApply() {
+  if (!hasDraft.value) { info('No hay cambios pendientes'); return }
+  showApplyConfirm.value = true
+}
+
+function confirmApply() {
+  themeStore.applyDraft()
+  hasDraft.value = false
+  showApplyConfirm.value = false
+  success('¡Cambios de paleta aplicados al sitio!')
+}
+
+function discardDraft() {
+  themeStore.discardDraft()
+  hasDraft.value = false
+  info('Cambios descartados')
+}
+
+// Copy hex
+function copyHex(hex) {
+  navigator.clipboard.writeText(hex).then(() => {
+    info(`¡Copiado: ${hex}!`)
+  })
 }
 </script>
 
 <template>
   <div class="config-view">
-    <!-- Encabezado -->
+    <!-- === ENCABEZADO === -->
     <div class="config-header">
       <div class="config-header-title">
-        <svg width="24" height="24" viewBox="0 0 24 24" class="header-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" class="header-icon">
           <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
         </svg>
         <div>
-          <h1>Configuración Visual</h1>
-          <p>PaletMaker · Personaliza colores y tipografía en tiempo real</p>
+          <h1>Configuración Visual — PaletMaker</h1>
+          <p>Gestiona paletas, tipografías y fuentes del sitio en tiempo real</p>
         </div>
       </div>
 
@@ -49,77 +157,234 @@ function saveNewPalette() {
       </div>
     </div>
 
-    <!-- =================== PALETAS GUARDADAS =================== -->
-    <section class="config-section">
-      <div class="section-header">
-        <h2>Paletas Guardadas</h2>
-        <span class="section-badge">{{ state.paletas.length }} paletas</span>
-      </div>
-      <div class="palettes-list">
-        <div
-          v-for="paleta in state.paletas"
-          :key="paleta.id"
-          class="palette-card"
-          :class="{ 'palette-card--active': paleta.active }"
-          @click="themeStore.activarPaleta(paleta.id)"
-        >
-          <div class="palette-swatches">
-            <div class="swatch" :style="{ background: paleta.colors.primary }"></div>
-            <div class="swatch" :style="{ background: paleta.colors.accent }"></div>
-            <div class="swatch" :style="{ background: paleta.colors.secondary }"></div>
-            <div class="swatch" :style="{ background: paleta.colors.bgCard }"></div>
-            <div class="swatch" :style="{ background: paleta.colors.textPrimary }"></div>
-          </div>
-          <div class="palette-info">
-            <span class="palette-name">{{ paleta.name }}</span>
-            <span v-if="paleta.active" class="palette-active-badge">Activa</span>
-          </div>
-          <button
-            v-if="!paleta.active"
-            class="palette-delete"
-            @click.stop="themeStore.eliminarPaleta(paleta.id)"
-            title="Eliminar paleta"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    <!-- === TABS === -->
+    <div class="config-tabs">
+      <button
+        v-for="tab in [
+          { key:'paletas',    label:'🎨 Paletas' },
+          { key:'editor',     label:'✏ Editor de Color' },
+          { key:'tipografia', label:'Aa Tipografía' },
+          { key:'fuentes',    label:'🔤 Fuentes' },
+        ]"
+        :key="tab.key"
+        class="config-tab"
+        :class="{ active: activeTab === tab.key }"
+        @click="activeTab = tab.key"
+      >{{ tab.label }}</button>
+    </div>
+
+    <!-- ===  TAB: PALETAS  === -->
+    <div v-if="activeTab === 'paletas'" class="tab-content">
+      <div class="palettes-toolbar">
+        <h2 class="section-title">Paletas de Color</h2>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-secondary" @click="openCreate">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Crear Paleta desde cero
+          </button>
+          <button class="btn btn-primary" @click="showSaveDialog = true">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+            Guardar paleta actual
           </button>
         </div>
-
-        <!-- Botón guardar paleta actual -->
-        <div class="palette-card palette-card--new" @click="showSaveDialog = true">
-          <svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-          <span>Guardar paleta actual</span>
-        </div>
       </div>
 
-      <!-- Dialogo nombre paleta -->
-      <div v-if="showSaveDialog" class="save-dialog-overlay" @click.self="showSaveDialog = false">
-        <div class="save-dialog">
-          <h3>Guardar Paleta</h3>
-          <input v-model="newPaletteName" placeholder="Nombre de la paleta" @keyup.enter="saveNewPalette" />
-          <div class="save-dialog-actions">
-            <button class="btn btn-secondary" @click="showSaveDialog = false">Cancelar</button>
-            <button class="btn btn-primary" @click="saveNewPalette">Guardar</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =================== EDITOR + PREVIEW =================== -->
-    <div class="editor-layout">
-      <!-- Panel izquierdo: editores -->
-      <div class="editors-panel">
-        <PaletteEditor />
-        <TypographyEditor />
-      </div>
-      <!-- Panel derecho: vista previa -->
-      <div class="preview-panel">
-        <div class="section-header">
-          <h2>Vista Previa en Tiempo Real</h2>
-          <span class="section-badge">Live</span>
-        </div>
-        <StylePreview />
+      <!-- Tabla de paletas -->
+      <div class="table-wrapper">
+        <table class="palettes-table">
+          <thead>
+            <tr>
+              <th>Vista previa</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Activa</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="paleta in state.paletas"
+              :key="paleta.id"
+              :class="{ 'row-active': paleta.active }"
+              @click="activar(paleta)"
+              style="cursor: pointer;"
+            >
+              <!-- Swatches -->
+              <td @click.stop>
+                <div class="swatches">
+                  <div v-for="(val, key) in paleta.colors" :key="key" class="swatch" :style="{ background: val }" :title="key" />
+                </div>
+              </td>
+              <!-- Nombre -->
+              <td>
+                <span class="palette-name">{{ paleta.name }}</span>
+                <span v-if="paleta.isDefault" class="badge-preset">Predeterminada</span>
+              </td>
+              <!-- Tipo -->
+              <td>
+                <span class="badge-type" :class="TYPE_CLASSES[paleta.type]">
+                  {{ TYPE_LABELS[paleta.type] || paleta.type }}
+                </span>
+              </td>
+              <!-- Activa -->
+              <td>
+                <span v-if="paleta.active" class="check-active">✓ Activa</span>
+                <span v-else class="text-muted">—</span>
+              </td>
+              <!-- Acciones -->
+              <td @click.stop>
+                <div class="act-row">
+                  <button
+                    v-if="!paleta.active"
+                    class="act-btn act-btn--activate"
+                    @click="activar(paleta)"
+                    title="Activar paleta"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    Activar
+                  </button>
+                  <button
+                    v-if="canEdit(paleta)"
+                    class="act-btn act-btn--edit"
+                    @click="openEdit(paleta)"
+                    title="Editar paleta"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                  </button>
+                  <button
+                    v-if="canDelete(paleta)"
+                    class="act-btn act-btn--delete"
+                    @click="requestDelete(paleta)"
+                    title="Eliminar paleta"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  </button>
+                  <span v-if="paleta.isDefault" class="act-locked" title="Paleta predeterminada — no editable">
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
+
+    <!-- === TAB: EDITOR DE COLOR === -->
+    <div v-if="activeTab === 'editor'" class="tab-content">
+      <!-- Banner de cambios pendientes -->
+      <transition name="slide-banner">
+        <div v-if="hasDraft" class="draft-banner">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          <span>Tienes cambios de color pendientes. Revisa la vista previa antes de aplicar.</span>
+          <div class="draft-actions">
+            <button class="btn btn-sm btn-danger-outline" @click="discardDraft">Descartar</button>
+            <button class="btn btn-sm btn-primary" @click="requestApply">Aplicar al sitio</button>
+          </div>
+        </div>
+      </transition>
+
+      <div class="editor-layout">
+        <!-- Panel izquierdo -->
+        <div class="editors-panel">
+          <PaletteEditor @color-changed="onColorChanged" />
+        </div>
+        <!-- Panel derecho -->
+        <div class="preview-panel">
+          <div class="section-header-row">
+            <h2>Vista Previa en Tiempo Real</h2>
+            <span class="badge-live">Live</span>
+          </div>
+          <StylePreview />
+        </div>
+      </div>
+    </div>
+
+    <!-- === TAB: TIPOGRAFÍA === -->
+    <div v-if="activeTab === 'tipografia'" class="tab-content">
+      <div class="editor-layout">
+        <div class="editors-panel">
+          <TypographyEditor />
+        </div>
+        <div class="preview-panel">
+          <div class="section-header-row">
+            <h2>Vista Previa</h2>
+          </div>
+          <StylePreview />
+        </div>
+      </div>
+    </div>
+
+    <!-- === TAB: FUENTES === -->
+    <div v-if="activeTab === 'fuentes'" class="tab-content">
+      <FontManager />
+    </div>
+
+    <!-- ===== MODALES Y DIÁLOGOS ===== -->
+
+    <!-- Diálogo guardar nueva paleta -->
+    <teleport to="body">
+      <transition name="dialog-fade">
+        <div v-if="showSaveDialog" class="dialog-overlay" @click.self="showSaveDialog = false">
+          <div class="save-dialog">
+            <h3>Guardar paleta actual</h3>
+            <p class="save-dialog-desc">Dale un nombre y tipo a esta paleta antes de guardarla en tu biblioteca.</p>
+            <div class="save-fields">
+              <div class="save-field">
+                <label>Nombre</label>
+                <input v-model="newPaletteName" placeholder="Ej: Azul Mariscos" @keyup.enter="saveNewPalette" class="save-input" />
+              </div>
+              <div class="save-field">
+                <label>Tipo</label>
+                <select v-model="newPaletteType" class="save-input">
+                  <option value="claro">☀ Claro</option>
+                  <option value="oscuro">🌙 Oscuro</option>
+                  <option value="daltonico">◉ Daltonismo</option>
+                </select>
+              </div>
+            </div>
+            <!-- Preview swatches de la paleta actual -->
+            <div class="save-preview">
+              <div v-for="(val, key) in state.currentColors" :key="key" class="swatch-lg" :style="{ background: val }" :title="key" />
+            </div>
+            <div class="save-dialog-actions">
+              <button class="btn btn-secondary" @click="showSaveDialog = false">Cancelar</button>
+              <button class="btn btn-primary" @click="saveNewPalette">Guardar</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
+    <!-- Modal editar/crear paleta -->
+    <EditPaletteModal
+      :show="showEditModal"
+      :paleta-id="editingId"
+      @close="showEditModal = false"
+      @created="onPaletteCreated"
+    />
+
+    <!-- Confirmar eliminar paleta -->
+    <ConfirmDialog
+      :show="showDeleteConfirm"
+      title="¿Eliminar paleta?"
+      :message="`¿Deseas eliminar la paleta &quot;${deletingPaleta?.name}&quot;? Podrás deshacerlo durante 6 segundos después.`"
+      confirm-label="Eliminar"
+      :danger="true"
+      @confirm="confirmDelete"
+      @cancel="showDeleteConfirm = false"
+    />
+
+    <!-- Confirmar aplicar draft -->
+    <ConfirmDialog
+      :show="showApplyConfirm"
+      title="¿Aplicar cambios de color?"
+      message="Los nuevos colores se aplicarán al sitio y se guardarán como configuración activa. ¿Confirmas?"
+      confirm-label="Sí, aplicar"
+      :danger="false"
+      @confirm="confirmApply"
+      @cancel="showApplyConfirm = false"
+    />
   </div>
 </template>
 
@@ -128,11 +393,11 @@ function saveNewPalette() {
   padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   min-height: 100vh;
 }
 
-/* === HEADER === */
+/* Header */
 .config-header {
   display: flex;
   align-items: flex-start;
@@ -140,191 +405,133 @@ function saveNewPalette() {
   gap: 1rem;
   flex-wrap: wrap;
 }
-.config-header-title {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
+.config-header-title { display: flex; align-items: center; gap: 1rem; }
 .header-icon { fill: var(--color-primary); flex-shrink: 0; }
 .config-header-title h1 {
   font-size: var(--font-size-h2);
   color: var(--color-text-primary);
-  font-weight: 700;
+  font-weight: 700; margin: 0;
+  font-family: var(--font-family-heading, 'Merriweather', serif);
 }
-.config-header-title p {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-  margin-top: 0.2rem;
-}
+.config-header-title p { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0.2rem 0 0; }
 
 /* Mode toggles */
-.mode-toggles {
-  display: flex;
-  gap: 0.4rem;
-  background: var(--color-bg-page);
-  border-radius: var(--radius-pill);
-  padding: 4px;
-}
+.mode-toggles { display: flex; gap: 0.4rem; background: var(--color-bg-page); border-radius: var(--radius-pill); padding: 4px; }
 .mode-btn {
   padding: 0.45rem 1rem;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: none;
-  color: var(--color-text-secondary);
-  font-size: 0.82rem;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  white-space: nowrap;
+  border: none; border-radius: var(--radius-pill);
+  background: none; color: var(--color-text-secondary);
+  font-size: 0.82rem; font-family: inherit; font-weight: 500;
+  cursor: pointer; transition: background 0.2s, color 0.2s; white-space: nowrap;
 }
-.mode-btn.active {
-  background: var(--color-primary);
-  color: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
+.mode-btn.active { background: var(--color-primary); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 
-/* === SECCIONES === */
-.config-section {
+/* Tabs */
+.config-tabs {
+  display: flex;
+  gap: 0.25rem;
   background: var(--color-bg-card);
   border-radius: var(--radius-md);
-  padding: 1.5rem;
+  padding: 6px;
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(128,128,128,0.08);
-  position: relative;
-}
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.2rem;
-}
-.section-header h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-.section-badge {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-}
-
-/* === PALETAS GRID === */
-.palettes-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-}
-.palette-card {
-  background: var(--color-bg-page);
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  padding: 0.9rem 1rem;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 160px;
-  position: relative;
-}
-.palette-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-.palette-card--active {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-.palette-card--new {
-  align-items: center;
-  justify-content: center;
-  min-height: 90px;
-  color: var(--color-primary);
-  border: 2px dashed color-mix(in srgb, var(--color-primary) 40%, transparent);
-  font-size: 0.82rem;
-  font-weight: 600;
-  gap: 0.4rem;
-}
-.palette-card--new svg { fill: var(--color-primary); }
-
-.palette-swatches { display: flex; gap: 4px; }
-.swatch {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.4);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-}
-.palette-info {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
   flex-wrap: wrap;
 }
-.palette-name { font-size: 0.82rem; font-weight: 600; color: var(--color-text-primary); }
-.palette-active-badge {
-  font-size: 0.66rem;
-  background: var(--color-primary);
-  color: white;
-  padding: 1px 7px;
-  border-radius: 20px;
-  font-weight: 600;
+.config-tab {
+  padding: 0.55rem 1.2rem;
+  border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--color-text-secondary);
+  font-size: 0.85rem; font-family: inherit; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
 }
-.palette-delete {
-  position: absolute; top: 8px; right: 8px;
-  background: none; border: none; cursor: pointer;
-  color: var(--color-text-secondary);
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
-  padding: 4px;
-  border-radius: 6px;
-}
-.palette-card:hover .palette-delete { opacity: 1; }
-.palette-delete:hover { color: #dc3232; background: rgba(220,50,50,0.08); }
-.palette-delete svg { fill: currentColor; }
+.config-tab:hover { background: var(--color-bg-page); color: var(--color-text-primary); }
+.config-tab.active { background: var(--color-primary); color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 
-/* Dialog */
-.save-dialog-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 100; backdrop-filter: blur(4px);
+/* Tab content */
+.tab-content { display: flex; flex-direction: column; gap: 1.5rem; }
+
+/* Palettes */
+.palettes-toolbar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem;
 }
-.save-dialog {
+.section-title { font-size: 1rem; font-weight: 700; color: var(--color-text-primary); margin: 0; }
+
+.table-wrapper {
   background: var(--color-bg-card);
   border-radius: var(--radius-md);
-  padding: 2rem;
-  min-width: 320px;
-  box-shadow: var(--shadow-lg);
-  display: flex; flex-direction: column; gap: 1rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(128,128,128,0.08);
+  overflow-x: auto;
 }
-.save-dialog h3 { color: var(--color-text-primary); font-size: 1.1rem; font-weight: 700; }
-.save-dialog input {
-  padding: 0.75rem 1rem;
-  border: 2px solid rgba(128,128,128,0.15);
-  border-radius: var(--radius-sm);
+.palettes-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.palettes-table th {
   background: var(--color-bg-page);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 0.75rem 1.2rem; text-align: left;
+  border-bottom: 1px solid rgba(128,128,128,0.1);
+}
+.palettes-table td {
+  padding: 0.9rem 1.2rem;
   color: var(--color-text-primary);
-  font-size: 1rem; font-family: inherit;
-  outline: none; transition: border-color 0.2s;
+  border-bottom: 1px solid rgba(128,128,128,0.06);
+  vertical-align: middle;
 }
-.save-dialog input:focus { border-color: var(--color-primary); }
-.save-dialog-actions { display: flex; gap: 0.8rem; justify-content: flex-end; }
+.palettes-table tr:last-child td { border-bottom: none; }
+.palettes-table tbody tr { background: var(--color-bg-card); transition: background 0.15s; }
+.palettes-table tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-card)); }
+.row-active { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-card)) !important; }
 
-/* Botones globales reutilizables */
-.btn {
-  padding: 0.6rem 1.4rem;
-  border-radius: var(--radius-pill);
+.swatches { display: flex; gap: 4px; flex-wrap: wrap; }
+.swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+
+.palette-name { font-weight: 600; }
+.badge-preset { margin-left: 0.4rem; font-size: 0.68rem; font-weight: 600; color: var(--color-text-secondary); background: rgba(128,128,128,0.1); padding: 1px 7px; border-radius: 20px; }
+
+.badge-type { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
+.badge-type--claro    { background: color-mix(in srgb, #1a91db 12%, transparent); color: #1a91db; }
+.badge-type--oscuro   { background: rgba(36,36,56,0.12); color: #7986cb; }
+.badge-type--daltonico { background: color-mix(in srgb, #2BB0E6 12%, transparent); color: #2BB0E6; }
+
+.check-active { font-size: 0.78rem; font-weight: 700; color: #10b981; }
+.text-muted   { color: var(--color-text-secondary); opacity: 0.5; font-size: 0.8rem; }
+
+.act-row { display: flex; gap: 0.35rem; align-items: center; }
+.act-btn {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 4px 10px; border-radius: 8px;
   border: none; cursor: pointer;
-  font-size: var(--font-size-btn); font-family: inherit;
-  font-weight: 600; transition: all 0.15s;
+  font-size: 0.75rem; font-weight: 600; font-family: inherit;
+  transition: all 0.15s;
 }
-.btn-primary { background: var(--color-primary); color: white; }
-.btn-primary:hover { filter: brightness(1.1); }
-.btn-secondary { background: var(--color-bg-page); color: var(--color-text-secondary); }
-.btn-secondary:hover { background: rgba(128,128,128,0.12); }
+.act-btn--activate { background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--color-primary); }
+.act-btn--activate svg { fill: var(--color-primary); }
+.act-btn--activate:hover { background: var(--color-primary); color: white; }
+.act-btn--activate:hover svg { fill: white; }
+.act-btn--edit { background: color-mix(in srgb, var(--color-accent) 10%, transparent); color: var(--color-accent); padding: 4px 8px; }
+.act-btn--edit svg { fill: var(--color-accent); }
+.act-btn--edit:hover { background: var(--color-accent); color: white; }
+.act-btn--edit:hover svg { fill: white; }
+.act-btn--delete { background: rgba(220,50,50,0.08); color: #dc3232; padding: 4px 8px; }
+.act-btn--delete svg { fill: #dc3232; }
+.act-btn--delete:hover { background: rgba(220,50,50,0.18); }
+.act-locked { color: var(--color-text-secondary); opacity: 0.4; padding: 4px; }
+.act-locked svg { fill: currentColor; }
 
-/* === LAYOUT EDITOR + PREVIEW === */
+/* Draft banner */
+.draft-banner {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid rgba(245,158,11,0.35);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.2rem;
+  flex-wrap: wrap;
+}
+.draft-banner svg { fill: #f59e0b; flex-shrink: 0; }
+.draft-banner span { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--color-text-primary); }
+.draft-actions { display: flex; gap: 0.5rem; }
+
+/* Editor layout */
 .editor-layout {
   display: grid;
   grid-template-columns: 380px 1fr;
@@ -338,9 +545,61 @@ function saveNewPalette() {
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(128,128,128,0.08);
-  position: sticky;
-  top: 1rem;
+  position: sticky; top: 1rem;
 }
+.section-header-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.2rem; }
+.section-header-row h2 { font-size: 1rem; font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.badge-live { background: #10b981; color: white; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; animation: pulse-live 2s infinite; }
+@keyframes pulse-live { 0%,100%{opacity:1;} 50%{opacity:0.6;} }
+
+/* Save dialog */
+.dialog-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 1rem; }
+.save-dialog {
+  background: var(--color-bg-card); border-radius: 20px; padding: 2rem;
+  min-width: 360px; max-width: 480px; width: 100%;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.save-dialog h3 { font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); margin: 0; }
+.save-dialog-desc { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0; line-height: 1.5; }
+.save-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.save-field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+.save-input {
+  width: 100%; padding: 0.65rem 0.9rem;
+  border: 2px solid rgba(128,128,128,0.15); border-radius: var(--radius-sm);
+  background: var(--color-bg-page); color: var(--color-text-primary);
+  font-size: 0.9rem; font-family: inherit; outline: none;
+  transition: border-color 0.2s;
+}
+.save-input:focus { border-color: var(--color-primary); }
+.save-preview { display: flex; gap: 6px; padding: 0.5rem 0; }
+.swatch-lg { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+.save-dialog-actions { display: flex; gap: 0.7rem; justify-content: flex-end; }
+
+/* Buttons */
+.btn {
+  padding: 0.6rem 1.4rem; border-radius: var(--radius-pill);
+  border: none; cursor: pointer;
+  font-size: var(--font-size-btn, 0.9rem); font-family: inherit; font-weight: 600;
+  transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn svg { fill: currentColor; }
+.btn-primary { background: var(--color-primary); color: white; box-shadow: 0 4px 14px rgba(26,145,219,0.25); }
+.btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn-secondary { background: var(--color-bg-page); color: var(--color-text-secondary); }
+.btn-secondary:hover { background: rgba(128,128,128,0.12); }
+.btn-sm { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
+.btn-danger-outline { background: none; border: 1px solid rgba(220,50,50,0.4); color: #dc3232; }
+.btn-danger-outline:hover { background: rgba(220,50,50,0.1); }
+
+/* Animaciones */
+.slide-banner-enter-active { animation: slideDown 0.25s ease; }
+.slide-banner-leave-active { animation: slideDown 0.2s ease reverse; }
+@keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+.dialog-fade-enter-active { animation: dfIn 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+.dialog-fade-leave-active { animation: dfOut 0.18s ease forwards; }
+@keyframes dfIn  { from {opacity:0;transform:scale(0.88);} to {opacity:1;transform:scale(1);} }
+@keyframes dfOut { to {opacity:0;transform:scale(0.9);} }
 
 @media (max-width: 900px) {
   .editor-layout { grid-template-columns: 1fr; }

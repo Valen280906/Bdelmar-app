@@ -1,8 +1,11 @@
 <script setup>
 import { useThemeStore } from '../../stores/useThemeStore.js'
+import { useToast } from '../../composables/useToast.js'
 
 const themeStore = useThemeStore()
 const state = themeStore.state
+const { info } = useToast()
+const emit = defineEmits(['color-changed'])
 
 const colorFields = [
   { key: 'primary',       label: 'Color Principal',    desc: 'Títulos, badges, bordes activos' },
@@ -16,7 +19,19 @@ const colorFields = [
 ]
 
 function onColorChange(key, event) {
+  // Inicia draft si aún no existe
+  if (!state.draftColors) themeStore.startDraft()
   themeStore.setColor(key, event.target.value)
+  themeStore.previewDraft()
+  emit('color-changed')
+}
+
+function copyHex(hex) {
+  navigator.clipboard.writeText(hex).then(() => info(`¡Copiado: ${hex}!`))
+}
+
+function currentValue(key) {
+  return state.draftColors ? state.draftColors[key] : state.currentColors[key]
 }
 </script>
 
@@ -41,18 +56,27 @@ function onColorChange(key, event) {
           {{ field.label }}
         </label>
         <div class="color-picker-row">
-          <div class="color-preview-swatch" :style="{ background: state.currentColors[field.key] }">
+          <div class="color-preview-swatch" :style="{ background: currentValue(field.key) }">
             <input
               :id="`color-${field.key}`"
               type="color"
-              :value="state.currentColors[field.key]"
+              :value="currentValue(field.key)"
               @input="onColorChange(field.key, $event)"
               class="native-color-input"
               :title="field.desc"
             />
           </div>
           <div class="color-meta">
-            <code class="color-hex">{{ state.currentColors[field.key] }}</code>
+            <div class="hex-row">
+              <code class="color-hex">{{ currentValue(field.key) }}</code>
+              <button
+                class="copy-btn"
+                @click="copyHex(currentValue(field.key))"
+                title="Copiar hex"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+              </button>
+            </div>
             <span class="color-desc">{{ field.desc }}</span>
           </div>
         </div>
@@ -146,6 +170,23 @@ code.color-hex {
   font-weight: 600;
   width: fit-content;
 }
+.hex-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 5px;
+  color: var(--color-text-secondary);
+  display: flex;
+  transition: background 0.15s, color 0.15s;
+}
+.copy-btn svg { fill: currentColor; }
+.copy-btn:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--color-primary); }
 .color-desc {
   font-size: 0.73rem;
   color: var(--color-text-secondary);
