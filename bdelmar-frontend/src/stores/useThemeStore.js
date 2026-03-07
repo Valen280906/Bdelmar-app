@@ -14,10 +14,7 @@ const PALETA_PRINCIPAL = {
     accent: '#db8b1a',
     secondary: '#3f8bba',
     bgPage: '#f0f2f5',
-    bgCard: '#fafafa',
     textPrimary: '#121212',
-    textSecondary: '#2c3e50',
-    imageBg: '#d4dce4',
   }
 }
 
@@ -30,10 +27,7 @@ const PALETA_OSCURA = {
     accent: '#e59524',
     secondary: '#4590bf',
     bgPage: '#121212',
-    bgCard: '#1e1e1e',
     textPrimary: '#ededed',
-    textSecondary: '#a0aab4',
-    imageBg: '#2a2a2a',
   }
 }
 
@@ -46,10 +40,7 @@ const PALETA_DALTONICO = {
     accent: '#db8b1a',
     secondary: '#3f8bba',
     bgPage: '#f0f2f5',
-    bgCard: '#fafafa',
     textPrimary: '#121212',
-    textSecondary: '#2c3e50',
-    imageBg: '#d4dce4',
   }
 }
 
@@ -77,6 +68,7 @@ export const useThemeStore = defineStore('theme', () => {
     currentColors: { ...PALETA_PRINCIPAL.colors },
     // draft: estado provisional antes de confirmar
     draftColors: null,
+    editingPaletteId: null,
     typography: { ...TYPOGRAPHY_DEFAULT },
     fonts: [...FONTS_DEFAULT],
     nextId: 4,
@@ -94,10 +86,12 @@ export const useThemeStore = defineStore('theme', () => {
     r.setProperty('--color-accent', c.accent)
     r.setProperty('--color-secondary', c.secondary)
     r.setProperty('--color-bg-page', c.bgPage)
-    r.setProperty('--color-bg-card', c.bgCard)
     r.setProperty('--color-text-primary', c.textPrimary)
-    r.setProperty('--color-text-secondary', c.textSecondary)
-    r.setProperty('--color-image-bg', c.imageBg)
+
+    // Derived colors to maintain beautiful UI depth with only 5 core palette colors
+    r.setProperty('--color-bg-card', `color-mix(in srgb, ${c.bgPage} 96%, ${c.textPrimary})`)
+    r.setProperty('--color-text-secondary', `color-mix(in srgb, ${c.textPrimary} 70%, transparent)`)
+    r.setProperty('--color-image-bg', `color-mix(in srgb, ${c.bgPage} 80%, ${c.primary})`)
 
     // Sombras derivadas del color primario
     const rgb = hexToRgb(c.primary)
@@ -121,29 +115,56 @@ export const useThemeStore = defineStore('theme', () => {
     if (headingFont) r.setProperty('--font-family-heading', headingFont.cssFamily)
     if (bodyFont) r.setProperty('--font-family-body', bodyFont.cssFamily)
 
-    // Cargar Google Fonts de las fuentes custom
-    [headingFont, bodyFont].forEach(f => {
-      if (f && !f.isDefault) {
-        const linkId = `gfont-${f.name.replace(/\s+/g, '-').toLowerCase()}`
-        if (!document.getElementById(linkId)) {
-          const link = document.createElement('link')
-          link.id = linkId
-          link.rel = 'stylesheet'
-          link.href = `https://fonts.googleapis.com/css2?family=${f.name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
-          document.head.appendChild(link)
+      // Cargar Google Fonts de las fuentes custom
+      ;[headingFont, bodyFont].forEach(f => {
+        if (f && !f.isDefault) {
+          const linkId = `gfont-${f.name.replace(/\s+/g, '-').toLowerCase()}`
+          if (!document.getElementById(linkId)) {
+            const link = document.createElement('link')
+            link.id = linkId
+            link.rel = 'stylesheet'
+            link.href = `https://fonts.googleapis.com/css2?family=${f.name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
+            document.head.appendChild(link)
+          }
         }
-      }
-    })
+      })
   }
 
   // --- Helpers ---
   function hexToRgb(hex) {
+    if (!hex) return null
     const clean = hex.replace('#', '')
     if (clean.length !== 6) return null
     const r = parseInt(clean.substring(0, 2), 16)
     const g = parseInt(clean.substring(2, 4), 16)
     const b = parseInt(clean.substring(4, 6), 16)
     return `${r}, ${g}, ${b}`
+  }
+
+  function getDraftStyles() {
+    const c = state.draftColors || state.currentColors
+    const t = state.typography
+    const rgb = hexToRgb(c.primary)
+
+    return {
+      '--color-primary': c.primary,
+      '--color-accent': c.accent,
+      '--color-secondary': c.secondary,
+      '--color-bg-page': c.bgPage,
+      '--color-text-primary': c.textPrimary,
+      '--color-bg-card': `color-mix(in srgb, ${c.bgPage} 96%, ${c.textPrimary})`,
+      '--color-text-secondary': `color-mix(in srgb, ${c.textPrimary} 70%, transparent)`,
+      '--color-image-bg': `color-mix(in srgb, ${c.bgPage} 80%, ${c.primary})`,
+      '--shadow-sm': rgb ? `0 4px 12px rgba(${rgb}, 0.12)` : '',
+      '--shadow-md': rgb ? `0 8px 24px rgba(${rgb}, 0.18)` : '',
+      '--shadow-lg': rgb ? `0 20px 40px rgba(${rgb}, 0.22)` : '',
+      '--font-size-h1': `${t.h1}rem`,
+      '--font-size-h2': `${t.h2}rem`,
+      '--font-size-h3': `${t.h3}rem`,
+      '--font-size-p': `${t.p}rem`,
+      '--font-size-btn': `${t.p}rem`,
+      '--font-size-menu': `${t.p}rem`,
+    }
   }
 
   // --- Acciones de Color ---
@@ -157,29 +178,49 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
-  function previewDraft() {
-    // Aplica el draft al DOM sin guardarlo (preview provisional)
-    if (state.draftColors) applyToDom(state.draftColors)
-  }
-
   function startDraft() {
     // Inicia edición provisional copiando los colores actuales
     state.draftColors = { ...state.currentColors }
+    state.editingPaletteId = null
   }
 
-  function applyDraft() {
-    // Confirma los cambios del draft
-    if (state.draftColors) {
-      state.currentColors = { ...state.draftColors }
-      state.draftColors = null
-      applyToDom()
-      persistToStorage()
+  function startDraftFrom(id) {
+    const paleta = state.paletas.find(p => p.id === id)
+    if (paleta) {
+      state.draftColors = { ...paleta.colors }
+      state.editingPaletteId = id
+    } else {
+      state.draftColors = { ...state.currentColors }
+      state.editingPaletteId = null
     }
+  }
+
+  function guardarCambiosEdicion() {
+    // Guarda los cambios del draft permanentemente
+    if (!state.draftColors) return false
+
+    if (state.editingPaletteId) {
+      editarPaleta(state.editingPaletteId, { colors: state.draftColors })
+    } else {
+      const activa = state.paletas.find(p => p.active)
+      if (activa && !activa.isDefault) {
+        editarPaleta(activa.id, { colors: state.draftColors })
+      } else {
+        // En caso de estar en una predeterminada temporal, actualizar currentColors  
+        state.currentColors = { ...state.draftColors }
+        applyToDom()
+        persistToStorage()
+      }
+    }
+    state.draftColors = null
+    state.editingPaletteId = null
+    return true
   }
 
   function discardDraft() {
     // Descarta el draft y restaura el DOM
     state.draftColors = null
+    state.editingPaletteId = null
     applyToDom()
   }
 
@@ -200,6 +241,7 @@ export const useThemeStore = defineStore('theme', () => {
       else state.currentColors = { ...PALETA_PRINCIPAL.colors }
     }
     state.draftColors = null
+    state.editingPaletteId = null
     applyToDom()
     persistToStorage()
   }
@@ -348,8 +390,9 @@ export const useThemeStore = defineStore('theme', () => {
     restaurarPaleta,
     editarPaleta,
     startDraft,
-    previewDraft,
-    applyDraft,
+    startDraftFrom,
+    guardarCambiosEdicion,
+    getDraftStyles,
     discardDraft,
     addFont,
     removeFont,

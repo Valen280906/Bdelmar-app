@@ -86,8 +86,8 @@ async function handleLogin() {
     const data = await res.json()
     if (data.success) {
       localStorage.setItem('bdelmar_role', data.data.role)
-      if (data.data.role === 'admin') router.push('/admin')
-      else router.push('/')
+      if (data.data.role === 'admin') router.push('/admin/configuracion')
+      else router.push('/catalogo')
     } else {
       error.value = data.error
     }

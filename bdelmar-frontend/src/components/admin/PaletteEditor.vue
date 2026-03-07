@@ -12,17 +12,13 @@ const colorFields = [
   { key: 'accent',        label: 'Acento',             desc: 'Precios, detalles destacados' },
   { key: 'secondary',     label: 'Secundario',         desc: 'Botones, fondos secundarios' },
   { key: 'bgPage',        label: 'Fondo de Página',    desc: 'Fondo general de la app' },
-  { key: 'bgCard',        label: 'Fondo de Tarjeta',   desc: 'Fondo de cards y paneles' },
   { key: 'textPrimary',   label: 'Texto Principal',    desc: 'Texto de párrafos y cuerpo' },
-  { key: 'textSecondary', label: 'Texto Secundario',   desc: 'Subtexto, placeholders' },
-  { key: 'imageBg',       label: 'Fondo de Imagen',    desc: 'Placeholder de imágenes' },
 ]
 
 function onColorChange(key, event) {
   // Inicia draft si aún no existe
   if (!state.draftColors) themeStore.startDraft()
   themeStore.setColor(key, event.target.value)
-  themeStore.previewDraft()
   emit('color-changed')
 }
 
@@ -116,7 +112,7 @@ function currentValue(key) {
   gap: 0.8rem;
 }
 
-.color-item {}
+
 
 .color-label {
   display: block;

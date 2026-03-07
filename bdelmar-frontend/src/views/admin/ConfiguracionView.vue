@@ -2,11 +2,15 @@
 import { ref, computed } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
+import DataTable from 'datatables.net-vue3'
+import DataTablesCore from 'datatables.net'
+import 'datatables.net-dt/css/dataTables.dataTables.css'
+DataTable.use(DataTablesCore)
+
 import PaletteEditor from '../../components/admin/PaletteEditor.vue'
 import TypographyEditor from '../../components/admin/TypographyEditor.vue'
 import StylePreview from '../../components/admin/StylePreview.vue'
 import FontManager from '../../components/admin/FontManager.vue'
-import EditPaletteModal from '../../components/admin/EditPaletteModal.vue'
 import ConfirmDialog from '../../components/shared/ConfirmDialog.vue'
 
 const themeStore = useThemeStore()
@@ -16,25 +20,26 @@ const { success, error, info } = useToast()
 // --- Tabs
 const activeTab = ref('paletas') // 'paletas' | 'editor' | 'tipografia' | 'fuentes'
 
+function changeTab(key) {
+  // Si nos vamos del editor sin guardar, se pierde el borrador (según solicitud del usuario)
+  if (activeTab.value === 'editor' && key !== 'editor') {
+    themeStore.discardDraft()
+  }
+  activeTab.value = key
+}
+
 // --- Paleta nueva
 const newPaletteName = ref('')
 const newPaletteType = ref('claro')
 const showSaveDialog = ref(false)
 
-// --- Editar paleta
-const showEditModal  = ref(false)
-const editingId      = ref(null)
-
 // --- Eliminar paleta
 const showDeleteConfirm = ref(false)
 const deletingPaleta    = ref(null)
 
-// --- Draft (preview provisional)
-const hasDraft       = ref(false)
-const showApplyConfirm = ref(false)
 
 // --- Tipos legibles
-const TYPE_LABELS   = { claro: '☀ Claro', oscuro: '🌙 Oscuro', daltonico: '◉ Daltonismo' }
+const TYPE_LABELS   = { claro: 'Claro', oscuro: 'Oscuro', daltonico: 'Daltonismo' }
 const TYPE_CLASSES  = { claro: 'badge-type--claro', oscuro: 'badge-type--oscuro', daltonico: 'badge-type--daltonico' }
 
 function canEdit(paleta)   { return !paleta.isDefault && !paleta.active }
@@ -58,13 +63,18 @@ function activar(paleta) {
 
 // --- Editar o Crear paleta
 function openEdit(paleta) {
-  editingId.value = paleta.id
-  showEditModal.value = true
+  themeStore.startDraftFrom(paleta.id)
+  activeTab.value = 'editor'
 }
 
 function openCreate() {
-  editingId.value = null
-  showEditModal.value = true
+  themeStore.startDraft()
+  activeTab.value = 'editor'
+}
+
+function updateDirect(paleta) {
+  themeStore.startDraftFrom(paleta.id)
+  activeTab.value = 'editor'
 }
 
 function onPaletteCreated(nuevaPaleta) {
@@ -98,24 +108,18 @@ function confirmDelete() {
 
 // --- Draft / Preview provisional
 function onColorChanged() {
-  hasDraft.value = true
+  // Ya no usamos el banner de hasDraft, los botones siempre están visibles en el tab editor
 }
 
-function requestApply() {
-  if (!hasDraft.value) { info('No hay cambios pendientes'); return }
-  showApplyConfirm.value = true
-}
-
-function confirmApply() {
-  themeStore.applyDraft()
-  hasDraft.value = false
-  showApplyConfirm.value = false
-  success('¡Cambios de paleta aplicados al sitio!')
+function saveEdits() {
+  const successFlag = themeStore.guardarCambiosEdicion()
+  if (successFlag) {
+    success('¡Cambios guardados con éxito!')
+  }
 }
 
 function discardDraft() {
   themeStore.discardDraft()
-  hasDraft.value = false
   info('Cambios descartados')
 }
 
@@ -124,6 +128,19 @@ function copyHex(hex) {
   navigator.clipboard.writeText(hex).then(() => {
     info(`¡Copiado: ${hex}!`)
   })
+}
+const dtOptions = {
+  language: {
+    search: "Buscar:",
+    lengthMenu: "Mostrar _MENU_ registros",
+    info: "Mostrando _START_ a _END_ de _TOTAL_",
+    infoEmpty: "Mostrando 0 a 0 de 0",
+    infoFiltered: "(filtrado de _MAX_ totales)",
+    paginate: { first: "«", last: "»", next: "Siguiente", previous: "Anterior" },
+    zeroRecords: "No se encontraron resultados"
+  },
+  pageLength: 5,
+  lengthChange: false
 }
 </script>
 
@@ -150,9 +167,9 @@ function copyHex(hex) {
           :class="{ active: state.mode === m }"
           @click="themeStore.setMode(m)"
         >
-          <span v-if="m === 'claro'">☀ Claro</span>
-          <span v-if="m === 'oscuro'">🌙 Oscuro</span>
-          <span v-if="m === 'daltonico'">◉ Daltonismo</span>
+          <span v-if="m === 'claro'"><ion-icon name="sunny"></ion-icon> Claro</span>
+          <span v-if="m === 'oscuro'"><ion-icon name="moon"></ion-icon> Oscuro</span>
+          <span v-if="m === 'daltonico'"><ion-icon name="eye"></ion-icon> Daltonismo</span>
         </button>
       </div>
     </div>
@@ -161,16 +178,19 @@ function copyHex(hex) {
     <div class="config-tabs">
       <button
         v-for="tab in [
-          { key:'paletas',    label:'🎨 Paletas' },
-          { key:'editor',     label:'✏ Editor de Color' },
-          { key:'tipografia', label:'Aa Tipografía' },
-          { key:'fuentes',    label:'🔤 Fuentes' },
+          { key:'paletas',    label:'Paletas', icon:'color-palette' },
+          { key:'editor',     label:'Editor de Color', icon:'color-fill' },
+          { key:'tipografia', label:'Tipografía', icon:'text' },
+          { key:'fuentes',    label:'Fuentes', icon:'document-text' },
         ]"
         :key="tab.key"
         class="config-tab"
         :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
-      >{{ tab.label }}</button>
+        @click="changeTab(tab.key)"
+      >
+        <ion-icon :name="tab.icon" style="font-size: 1.1em; transform: translateY(2px)"></ion-icon> 
+        {{ tab.label }}
+      </button>
     </div>
 
     <!-- ===  TAB: PALETAS  === -->
@@ -182,16 +202,16 @@ function copyHex(hex) {
             <svg width="16" height="16" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Crear Paleta desde cero
           </button>
-          <button class="btn btn-primary" @click="showSaveDialog = true">
-            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-            Guardar paleta actual
-          </button>
         </div>
       </div>
 
       <!-- Tabla de paletas -->
       <div class="table-wrapper">
-        <table class="palettes-table">
+        <DataTable
+          :key="state.paletas.map(p => p.id + (p.active ? 'a' : 'i')).join('-')"
+          class="palettes-table display"
+          :options="dtOptions"
+        >
           <thead>
             <tr>
               <th>Vista previa</th>
@@ -223,6 +243,9 @@ function copyHex(hex) {
               <!-- Tipo -->
               <td>
                 <span class="badge-type" :class="TYPE_CLASSES[paleta.type]">
+                  <ion-icon v-if="paleta.type === 'claro'" name="sunny"></ion-icon>
+                  <ion-icon v-else-if="paleta.type === 'oscuro'" name="moon"></ion-icon>
+                  <ion-icon v-else name="eye"></ion-icon>
                   {{ TYPE_LABELS[paleta.type] || paleta.type }}
                 </span>
               </td>
@@ -244,20 +267,21 @@ function copyHex(hex) {
                     Activar
                   </button>
                   <button
-                    v-if="canEdit(paleta)"
+                    v-if="!paleta.isDefault"
                     class="act-btn act-btn--edit"
-                    @click="openEdit(paleta)"
-                    title="Editar paleta"
+                    @click="updateDirect(paleta)"
+                    title="Actualizar / Editar colores de esta paleta"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                    Editar
                   </button>
                   <button
                     v-if="canDelete(paleta)"
                     class="act-btn act-btn--delete"
                     @click="requestDelete(paleta)"
-                    title="Eliminar paleta"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    Borrar
                   </button>
                   <span v-if="paleta.isDefault" class="act-locked" title="Paleta predeterminada — no editable">
                     <svg width="14" height="14" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
@@ -266,28 +290,23 @@ function copyHex(hex) {
               </td>
             </tr>
           </tbody>
-        </table>
+        </DataTable>
       </div>
     </div>
 
     <!-- === TAB: EDITOR DE COLOR === -->
     <div v-if="activeTab === 'editor'" class="tab-content">
-      <!-- Banner de cambios pendientes -->
-      <transition name="slide-banner">
-        <div v-if="hasDraft" class="draft-banner">
-          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
-          <span>Tienes cambios de color pendientes. Revisa la vista previa antes de aplicar.</span>
-          <div class="draft-actions">
-            <button class="btn btn-sm btn-danger-outline" @click="discardDraft">Descartar</button>
-            <button class="btn btn-sm btn-primary" @click="requestApply">Aplicar al sitio</button>
-          </div>
-        </div>
-      </transition>
 
       <div class="editor-layout">
         <!-- Panel izquierdo -->
         <div class="editors-panel">
           <PaletteEditor @color-changed="onColorChanged" />
+          
+          <div class="editor-actions-box">
+             <button class="btn btn-secondary" @click="discardDraft">Descartar Cambios</button>
+             <button v-if="state.editingPaletteId" class="btn btn-primary" @click="saveEdits">Guardar Cambios</button>
+             <button v-else class="btn btn-primary" @click="showSaveDialog = true">Guardar como Nueva</button>
+          </div>
         </div>
         <!-- Panel derecho -->
         <div class="preview-panel">
@@ -337,15 +356,15 @@ function copyHex(hex) {
               <div class="save-field">
                 <label>Tipo</label>
                 <select v-model="newPaletteType" class="save-input">
-                  <option value="claro">☀ Claro</option>
-                  <option value="oscuro">🌙 Oscuro</option>
-                  <option value="daltonico">◉ Daltonismo</option>
+                  <option value="claro">Claro</option>
+                  <option value="oscuro">Oscuro</option>
+                  <option value="daltonico">Daltonismo</option>
                 </select>
               </div>
             </div>
-            <!-- Preview swatches de la paleta actual -->
+            <!-- Preview swatches de los colores a guardar (draft) -->
             <div class="save-preview">
-              <div v-for="(val, key) in state.currentColors" :key="key" class="swatch-lg" :style="{ background: val }" :title="key" />
+              <div v-for="(val, key) in (state.draftColors || state.currentColors)" :key="key" class="swatch-lg" :style="{ background: val }" :title="key" />
             </div>
             <div class="save-dialog-actions">
               <button class="btn btn-secondary" @click="showSaveDialog = false">Cancelar</button>
@@ -356,15 +375,6 @@ function copyHex(hex) {
       </transition>
     </teleport>
 
-    <!-- Modal editar/crear paleta -->
-    <EditPaletteModal
-      :show="showEditModal"
-      :paleta-id="editingId"
-      @close="showEditModal = false"
-      @created="onPaletteCreated"
-    />
-
-    <!-- Confirmar eliminar paleta -->
     <ConfirmDialog
       :show="showDeleteConfirm"
       title="¿Eliminar paleta?"
@@ -373,17 +383,6 @@ function copyHex(hex) {
       :danger="true"
       @confirm="confirmDelete"
       @cancel="showDeleteConfirm = false"
-    />
-
-    <!-- Confirmar aplicar draft -->
-    <ConfirmDialog
-      :show="showApplyConfirm"
-      title="¿Aplicar cambios de color?"
-      message="Los nuevos colores se aplicarán al sitio y se guardarán como configuración activa. ¿Confirmas?"
-      confirm-label="Sí, aplicar"
-      :danger="false"
-      @confirm="confirmApply"
-      @cancel="showApplyConfirm = false"
     />
   </div>
 </template>
@@ -489,9 +488,9 @@ function copyHex(hex) {
 .badge-preset { margin-left: 0.4rem; font-size: 0.68rem; font-weight: 600; color: var(--color-text-secondary); background: rgba(128,128,128,0.1); padding: 1px 7px; border-radius: 20px; }
 
 .badge-type { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
-.badge-type--claro    { background: color-mix(in srgb, #1a91db 12%, transparent); color: #1a91db; }
-.badge-type--oscuro   { background: rgba(36,36,56,0.12); color: #7986cb; }
-.badge-type--daltonico { background: color-mix(in srgb, #2BB0E6 12%, transparent); color: #2BB0E6; }
+.badge-type--claro    { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+.badge-type--oscuro   { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+.badge-type--daltonico { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
 
 .check-active { font-size: 0.78rem; font-weight: 700; color: #10b981; }
 .text-muted   { color: var(--color-text-secondary); opacity: 0.5; font-size: 0.8rem; }
@@ -518,18 +517,10 @@ function copyHex(hex) {
 .act-locked { color: var(--color-text-secondary); opacity: 0.4; padding: 4px; }
 .act-locked svg { fill: currentColor; }
 
-/* Draft banner */
-.draft-banner {
-  display: flex; align-items: center; gap: 0.75rem;
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
-  border: 1px solid rgba(245,158,11,0.35);
-  border-radius: var(--radius-md);
-  padding: 0.9rem 1.2rem;
-  flex-wrap: wrap;
+/* Editor actions */
+.editor-actions-box {
+  display: flex; gap: 0.6rem; flex-wrap: wrap; background: var(--color-bg-card); padding: 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid rgba(128,128,128,0.08); align-items: center; justify-content: flex-end;
 }
-.draft-banner svg { fill: #f59e0b; flex-shrink: 0; }
-.draft-banner span { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--color-text-primary); }
-.draft-actions { display: flex; gap: 0.5rem; }
 
 /* Editor layout */
 .editor-layout {
@@ -586,16 +577,15 @@ function copyHex(hex) {
 .btn svg { fill: currentColor; }
 .btn-primary { background: var(--color-primary); color: white; box-shadow: 0 4px 14px rgba(26,145,219,0.25); }
 .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.btn-secondary { background: var(--color-bg-page); color: var(--color-text-secondary); }
-.btn-secondary:hover { background: rgba(128,128,128,0.12); }
+.btn-secondary { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-page)); color: var(--color-primary); }
+.btn-secondary:hover { background: color-mix(in srgb, var(--color-primary) 15%, var(--color-bg-page)); }
 .btn-sm { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
 .btn-danger-outline { background: none; border: 1px solid rgba(220,50,50,0.4); color: #dc3232; }
 .btn-danger-outline:hover { background: rgba(220,50,50,0.1); }
 
+.btn-danger-outline:hover { background: rgba(220,50,50,0.1); }
+
 /* Animaciones */
-.slide-banner-enter-active { animation: slideDown 0.25s ease; }
-.slide-banner-leave-active { animation: slideDown 0.2s ease reverse; }
-@keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
 .dialog-fade-enter-active { animation: dfIn 0.25s cubic-bezier(0.34,1.56,0.64,1); }
 .dialog-fade-leave-active { animation: dfOut 0.18s ease forwards; }
 @keyframes dfIn  { from {opacity:0;transform:scale(0.88);} to {opacity:1;transform:scale(1);} }

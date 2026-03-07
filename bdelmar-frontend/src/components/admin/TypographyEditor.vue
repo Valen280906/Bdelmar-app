@@ -1,8 +1,10 @@
 <script setup>
 import { useThemeStore } from '../../stores/useThemeStore.js'
+import { useToast } from '../../composables/useToast.js'
 
 const themeStore = useThemeStore()
 const state = themeStore.state
+const { error } = useToast()
 
 const typographyFields = [
   { key: 'h1',  label: 'Título Principal (H1)', min: 1.6, max: 3.8, step: 0.1, unit: 'rem' },
@@ -12,7 +14,32 @@ const typographyFields = [
 ]
 
 function onSliderChange(key, event) {
-  themeStore.setTypography(key, parseFloat(event.target.value))
+  const newVal = parseFloat(event.target.value)
+  const current = state.typography
+
+  // Validación de Jerarquía: h1 > h2 > h3 > p
+  if (key === 'h1' && newVal <= current.h2) {
+    error('El título principal (H1) debe ser mayor que el subtítulo (H2)')
+    event.target.value = current.h1
+    return
+  }
+  if (key === 'h2' && (newVal >= current.h1 || newVal <= current.h3)) {
+    error('El H2 debe ser menor que el H1 y mayor que el H3')
+    event.target.value = current.h2
+    return
+  }
+  if (key === 'h3' && (newVal >= current.h2 || newVal <= current.p)) {
+    error('El H3 debe ser menor que el H2 y mayor que el Párrafo')
+    event.target.value = current.h3
+    return
+  }
+  if (key === 'p' && newVal >= current.h3) {
+    error('El párrafo debe ser menor que el subtítulo H3')
+    event.target.value = current.p
+    return
+  }
+
+  themeStore.setTypography(key, newVal)
 }
 </script>
 

@@ -1,6 +1,4 @@
-// server.js – Backend completo para B DEL MAR 3011
-// MySQL + Auth (login, register, forgot/verify/reset password) + Theme
-// Ejecutar con: npm run dev
+
 
 const express = require('express')
 const cors = require('cors')
@@ -13,9 +11,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// ============================================================
-// === Conexión MySQL =========================================
-// ============================================================
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,

@@ -1,11 +1,14 @@
 <script setup>
+import { useThemeStore } from '../../stores/useThemeStore.js'
+
+const store = useThemeStore()
 // StylePreview.vue
-// Vista previa en tiempo real de todos los componentes con la paleta activa.
-// No necesita importar nada del store porque usa las CSS variables directamente.
+// Vista previa en tiempo real de todos los componentes.
+// Aisla las variables CSS pasadas por el draft.
 </script>
 
 <template>
-  <div class="style-preview">
+  <div class="style-preview" :style="store.getDraftStyles()">
 
     <!-- === TIPOGRAFÍA === -->
     <section class="preview-section">
@@ -99,11 +102,8 @@
           <div class="product-image-placeholder">
             <svg width="40" height="40" viewBox="0 0 24 24"><path d="M12 3a9 9 0 100 18A9 9 0 0012 3zm0 2a7 7 0 110 14A7 7 0 0112 5zm-1 4h2v2h2v2h-2v2h-2v-2H9v-2h2V9z" opacity="0.4"/></svg>
           </div>
-          <span class="product-badge">{{ item.badge }}</span>
           <div class="product-title">{{ item.name }}</div>
           <div class="product-desc">{{ item.desc }}</div>
-          <div class="product-price">{{ item.price }}</div>
-          <button class="btn-primary product-btn">Ver producto</button>
         </div>
       </div>
     </section>
@@ -116,8 +116,8 @@ export default {
   data() {
     return {
       products: [
-        { name: 'Mojito', badge: '⭐ Destacado', desc: 'Fresco y de temporada', price: '$125' },
-        { name: 'Merlusa', badge: '🔥 Popular', desc: 'Recién capturado', price: '$45' },
+        { name: 'Mojito', desc: 'Fresco y de temporada' },
+        { name: 'Merluza', desc: 'Recién capturado' },
       ]
     }
   }
@@ -129,6 +129,9 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1.8rem;
+  background-color: var(--color-bg-page);
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
 }
 
 /* === SECCIÓN === */

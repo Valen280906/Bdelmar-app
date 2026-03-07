@@ -13,7 +13,7 @@ let nextId = 1
  */
 function showToast(message, type = 'info', undoFn = null, duration = null) {
     const id = nextId++
-    const ms = duration || (undoFn ? 6000 : 4000)
+    const ms = duration || (undoFn ? 6000 : 3000)
 
     const toast = {
         id,
@@ -65,8 +65,12 @@ export function useToast() {
         dismiss,
         undo,
         // Shortcuts
-        success: (msg, undoFn) => showToast(msg, 'success', undoFn),
-        error: (msg) => showToast(msg, 'error'),
+        success: (msg, typeStr, undoFn) => {
+            // Support success(msg, undoFn) format
+            if (typeof typeStr === 'function') return showToast(msg, 'success', typeStr)
+            // Support success(msg, 'success', undoFn) format
+            return showToast(msg, 'success', undoFn)
+        },
         info: (msg) => showToast(msg, 'info'),
         warning: (msg) => showToast(msg, 'warning'),
     }

@@ -7,14 +7,20 @@ async function updateDb() {
         port: 3306,
         database: 'bdelmar',
         user: 'root',
-        password: 'And_31856233'
+        password: 'perla1505'
     });
 
     const adminHash = await bcrypt.hash('AdminBdelmar#2026', 12);
     const userHash = await bcrypt.hash('UserBdelmar$2026', 12);
 
-    await pool.query('UPDATE users SET password = ? WHERE username = ?', [adminHash, 'admin']);
-    await pool.query('UPDATE users SET password = ? WHERE username = ?', [userHash, 'user']);
+    await pool.query(
+        'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE password = VALUES(password)',
+        ['admin', 'admin@bdelmar.com', adminHash, 'admin']
+    );
+    await pool.query(
+        'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE password = VALUES(password)',
+        ['user', 'user@bdelmar.com', userHash, 'user']
+    );
 
     console.log('Update success');
     process.exit(0);

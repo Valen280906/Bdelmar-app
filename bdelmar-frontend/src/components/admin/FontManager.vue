@@ -3,6 +3,10 @@ import { ref, computed } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
 import ConfirmDialog from '../shared/ConfirmDialog.vue'
+import DataTable from 'datatables.net-vue3'
+import DataTablesCore from 'datatables.net'
+import 'datatables.net-dt/css/dataTables.dataTables.css'
+DataTable.use(DataTablesCore)
 
 const themeStore = useThemeStore()
 const state = themeStore.state
@@ -120,6 +124,20 @@ function activateFont(font) {
 function previewFontStyle(font) {
   return { fontFamily: font.cssFamily }
 }
+
+const dtOptions = {
+  language: {
+    search: "Buscar:",
+    lengthMenu: "Mostrar _MENU_ registros",
+    info: "Mostrando _START_ a _END_ de _TOTAL_",
+    infoEmpty: "Mostrando 0 a 0 de 0",
+    infoFiltered: "(filtrado de _MAX_ totales)",
+    paginate: { first: "«", last: "»", next: "Siguiente", previous: "Anterior" },
+    zeroRecords: "No se encontraron resultados"
+  },
+  pageLength: 5,
+  lengthChange: false
+}
 </script>
 
 <template>
@@ -222,7 +240,11 @@ function previewFontStyle(font) {
 
     <!-- Tabla de fuentes -->
     <div class="fm-table-wrapper">
-      <table class="fm-table">
+      <DataTable
+        :key="state.fonts.length"
+        class="fm-table display"
+        :options="dtOptions"
+      >
         <thead>
           <tr>
             <th>Vista Previa</th>
@@ -285,7 +307,7 @@ function previewFontStyle(font) {
             </td>
           </tr>
         </tbody>
-      </table>
+      </DataTable>
     </div>
 
     <!-- Confirmación de eliminar -->

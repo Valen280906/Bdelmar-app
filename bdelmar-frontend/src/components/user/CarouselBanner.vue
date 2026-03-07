@@ -1,111 +1,74 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
+import { Carousel, Slide, Navigation, Pagination } from 'vue3-carousel'
+import 'vue3-carousel/dist/carousel.css'
+import banner1 from '@/assets/banner1.png'
+import banner2 from '@/assets/banner2.jpg'
 
 const slides = [
   {
-    image: '/banner1.png',
+    image: banner1,
     title: 'Mariscos Frescos del Día',
     subtitle: 'Directamente del mar a tu mesa · Distribución al mayor y detal',
     cta: 'Ver Productos',
   },
   {
-    image: '/banner2.png',
+    image: banner2,
     title: 'Ceviches y Preparaciones',
     subtitle: 'Calidad premium garantizada · RIF J500760817',
     cta: 'Nuestros Servicios',
   },
-  {
-    image: '/banner3.png',
-    title: 'Distribución Comercial',
-    subtitle: 'Contáctanos: 0424-4293765 · 0412-7550945',
-    cta: 'Contactar',
-  },
 ]
-
-const current = ref(0)
-let timer = null
-
-function prev() {
-  current.value = (current.value - 1 + slides.length) % slides.length
-  resetTimer()
-}
-function next() {
-  current.value = (current.value + 1) % slides.length
-  resetTimer()
-}
-function goTo(i) {
-  current.value = i
-  resetTimer()
-}
-function resetTimer() {
-  clearInterval(timer)
-  timer = setInterval(next, 5000)
-}
-
-onMounted(() => { timer = setInterval(next, 5000) })
-onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-  <section class="carousel" id="inicio">
-    <div class="carousel-track">
-      <div
-        v-for="(slide, i) in slides"
-        :key="i"
-        class="carousel-slide"
-        :class="{ active: i === current }"
-      >
-        <img :src="slide.image" :alt="slide.title" class="slide-img" />
-        <div class="slide-overlay"></div>
-        <div class="slide-content">
-          <div class="slide-badge">B DEL MAR 3011</div>
-          <h1 class="slide-title">{{ slide.title }}</h1>
-          <p class="slide-subtitle">{{ slide.subtitle }}</p>
-          <a :href="'#productos'" class="slide-cta">
-            {{ slide.cta }}
-            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
-          </a>
+  <section class="carousel-section" id="inicio">
+    <Carousel :autoplay="5000" :wrapAround="true" class="main-carousel">
+      <Slide v-for="(slide, i) in slides" :key="i">
+        <div class="carousel-slide">
+          <img :src="slide.image" :alt="slide.title" class="slide-img" />
+          <div class="slide-overlay"></div>
+          <div class="slide-content">
+            <div class="slide-badge">B DEL MAR 3011</div>
+            <h1 class="slide-title">{{ slide.title }}</h1>
+            <p class="slide-subtitle">{{ slide.subtitle }}</p>
+            <a :href="'#productos'" class="slide-cta">
+              {{ slide.cta }}
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+            </a>
+          </div>
         </div>
-      </div>
-    </div>
+      </Slide>
 
-    <!-- Flechas -->
-    <button class="carousel-arrow carousel-arrow--prev" @click="prev">
-      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-    </button>
-    <button class="carousel-arrow carousel-arrow--next" @click="next">
-      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-    </button>
-
-    <!-- Indicadores -->
-    <div class="carousel-dots">
-      <button
-        v-for="(_, i) in slides"
-        :key="i"
-        class="carousel-dot"
-        :class="{ active: i === current }"
-        @click="goTo(i)"
-      ></button>
-    </div>
+      <template #addons>
+        <Navigation />
+        <Pagination />
+      </template>
+    </Carousel>
   </section>
 </template>
 
 <style scoped>
-.carousel {
+.carousel-section {
   position: relative;
   height: 520px;
   overflow: hidden;
 }
 
-/* TRACK */
-.carousel-track { position: relative; width: 100%; height: 100%; }
-.carousel-slide {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.7s ease;
+.main-carousel {
+  height: 100%;
 }
-.carousel-slide.active { opacity: 1; z-index: 1; }
+:deep(.carousel__track) {
+  height: 100%;
+}
+:deep(.carousel__viewport) {
+  height: 100%;
+}
+
+.carousel-slide {
+  position: relative;
+  width: 100%; height: 520px;
+}
 
 .slide-img {
   width: 100%;
@@ -174,48 +137,49 @@ onUnmounted(() => clearInterval(timer))
 .slide-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); color: white; }
 .slide-cta svg { fill: white; }
 
-/* FLECHAS */
-.carousel-arrow {
-  position: absolute;
-  top: 50%; transform: translateY(-50%);
-  z-index: 5;
+/* Vue3 Carousel Customization */
+:deep(.carousel__prev), :deep(.carousel__next) {
   background: rgba(255,255,255,0.15);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 50%;
   width: 48px; height: 48px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
   color: white;
   transition: background 0.15s, transform 0.15s;
 }
-.carousel-arrow:hover { background: var(--color-primary); transform: translateY(-50%) scale(1.08); }
-.carousel-arrow svg { fill: currentColor; }
-.carousel-arrow--prev { left: 1.5rem; }
-.carousel-arrow--next { right: 1.5rem; }
-
-/* DOTS */
-.carousel-dots {
-  position: absolute;
-  bottom: 1.5rem; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 8px; z-index: 5;
+:deep(.carousel__prev:hover), :deep(.carousel__next:hover) { 
+  background: var(--color-primary); 
+  transform: scale(1.08); 
 }
-.carousel-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  border: none;
+:deep(.carousel__icon) {
+  fill: currentColor;
+}
+:deep(.carousel__pagination) {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%; transform: translateX(-50%);
+  z-index: 5;
+  display: flex; gap: 8px;
+  padding: 0;
+}
+:deep(.carousel__pagination-button) {
+  padding: 0; margin: 0;
+}
+:deep(.carousel__pagination-button::after) {
+  content: ''; display: block;
+  width: 10px; height: 10px; border-radius: 50%;
   background: rgba(255,255,255,0.4);
-  cursor: pointer;
   transition: background 0.2s, transform 0.2s;
 }
-.carousel-dot.active {
+:deep(.carousel__pagination-button--active::after) {
   background: var(--color-accent);
   transform: scale(1.3);
 }
 
 @media (max-width: 768px) {
-  .carousel { height: 380px; }
+  .carousel-section { height: 380px; }
+  .carousel-slide { height: 380px; }
   .slide-content { padding: 2rem 1.5rem; }
-  .carousel-arrow { width: 38px; height: 38px; }
+  :deep(.carousel__prev), :deep(.carousel__next) { width: 38px; height: 38px; }
 }
 </style>

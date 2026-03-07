@@ -1,12 +1,31 @@
 <script setup>
+import { Carousel, Slide, Navigation, Pagination } from 'vue3-carousel'
+import 'vue3-carousel/dist/carousel.css'
+
+// Se pueden cargar de forma dinámica con Vite:
+function getImageUrl(name) {
+  return new URL(`../../assets/${name}.jpg`, import.meta.url).href
+}
+
 const products = [
-  { name: 'Langosta Entera', price: '$125', desc: 'Fresca del día, captura artesanal. Ideal para parrilla y ceviche.', tag: 'Premium' },
-  { name: 'Camarones Titi', price: '$65', desc: 'Tiernos y dulces. Perfectos para cocktail, pasta y a la plancha.', tag: 'Popular' },
-  { name: 'Merlusa Fresca', price: '$45', desc: 'Filete blanco y suave. Excelente para sopas y frituras.', tag: 'Oferta' },
-  { name: 'Atún Aleta Azul', price: '$75', desc: 'El rey del océano en tu mesa. Rico en omega-3. Ideal al sashimi.', tag: 'Importado' },
-  { name: 'Pulpo del Caribe', price: '$90', desc: 'Tentáculo tierno marinado. Para parrilla, ceviche o tacos.', tag: 'Favorito' },
-  { name: 'Mejillones', price: '$30', desc: 'Cosechados en el mar Caribe. Al vapor, con ajo o a la marinera.', tag: 'Económico' },
+  { name: 'Curbina', desc: 'Carne blanca y suave, excelente para ceviches y horno.', image: getImageUrl('Corvina') },
+  { name: 'Carite', desc: 'Perfecto para freír en ruedas con limón.', image: getImageUrl('Carite') },
+  { name: 'Pargo Rojo', desc: 'El rey de la parrilla y platos horneados.', image: getImageUrl('Pargo-rojo') },
+  { name: 'Pargo Blanco', desc: 'Textura suave y sabor inconfundible.', image: getImageUrl('Pargo-blanco') },
+  { name: 'Merluza', desc: 'Filetes sin espinas, ideal para empanizar.', image: getImageUrl('Merluza') },
+  { name: 'Róbalo', desc: 'Pescado de alta gama, carne firme.', image: getImageUrl('Robalo') },
+  { name: 'Jurel', desc: 'Apto para sancochos y sudados jugosos.', image: getImageUrl('Jurel') },
+  { name: 'Tajalí', desc: 'Clásico frito de la costa venezolana.', image: getImageUrl('Tajali') },
+  { name: 'Cámara sin Concha', desc: 'Listos para paellas y al ajillo.', image: getImageUrl('Camaron') },
+  { name: 'Mojito de Raya', desc: 'Desmenuzado y listo para guisar.', image: getImageUrl('Mojito de Raya') },
+  { name: 'Cazón', desc: 'Para las tradicionales empanadas orientales.', image: getImageUrl('Mojito de Cazon') },
 ]
+
+const breakpoints = {
+  300: { itemsToShow: 1, snapAlign: 'center' },
+  700: { itemsToShow: 2, snapAlign: 'center' },
+  1024: { itemsToShow: 3, snapAlign: 'start' },
+}
 </script>
 
 <template>
@@ -18,30 +37,28 @@ const products = [
         <p>Selección diaria de los mejores mariscos. Calidad y frescura garantizada en cada pedido.</p>
       </div>
 
-      <div class="productos-grid">
-        <article
-          v-for="product in products"
-          :key="product.name"
-          class="product-card"
-        >
-          <div class="product-image">
-            <div class="product-tag">{{ product.tag }}</div>
-            <svg width="52" height="52" viewBox="0 0 24 24" class="product-placeholder-icon">
-              <path d="M21 6.5C21 8.43 19.43 10 17.5 10 15.57 10 14 8.43 14 6.5S15.57 3 17.5 3 21 4.57 21 6.5zM3.5 10C5.43 10 7 8.43 7 6.5S5.43 3 3.5 3 0 4.57 0 6.5 1.57 10 3.5 10zM12 13c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" opacity="0.35"/>
-            </svg>
-          </div>
-          <div class="product-body">
-            <h3 class="product-name">{{ product.name }}</h3>
-            <p class="product-desc">{{ product.desc }}</p>
-            <div class="product-footer">
-              <span class="product-price">{{ product.price }}</span>
-              <button class="btn-add">
-                <svg width="16" height="16" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                Añadir
-              </button>
-            </div>
-          </div>
-        </article>
+      <div class="productos-carousel-wrapper">
+        <Carousel :breakpoints="breakpoints" :wrapAround="true">
+          <Slide v-for="product in products" :key="product.name">
+            <article class="product-card">
+              <div class="product-image">
+                <img :src="product.image" :alt="product.name" class="product-real-img" @error="e => e.target.style.display = 'none'" />
+                <svg width="52" height="52" viewBox="0 0 24 24" class="product-placeholder-icon">
+                  <path d="M21 6.5C21 8.43 19.43 10 17.5 10 15.57 10 14 8.43 14 6.5S15.57 3 17.5 3 21 4.57 21 6.5zM3.5 10C5.43 10 7 8.43 7 6.5S5.43 3 3.5 3 0 4.57 0 6.5 1.57 10 3.5 10zM12 13c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" opacity="0.35"/>
+                </svg>
+              </div>
+              <div class="product-body">
+                <h3 class="product-name">{{ product.name }}</h3>
+                <p class="product-desc">{{ product.desc }}</p>
+              </div>
+            </article>
+          </Slide>
+
+          <template #addons>
+            <Navigation />
+            <Pagination />
+          </template>
+        </Carousel>
       </div>
 
       <!-- CTA -->
@@ -88,13 +105,12 @@ const products = [
 }
 
 /* Grid */
-.productos-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+.productos-carousel-wrapper {
+  padding: 0 1rem;
 }
-@media (max-width: 900px) { .productos-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .productos-grid { grid-template-columns: 1fr; } }
+:deep(.carousel__slide) {
+  padding: 10px;
+}
 
 /* Tarjeta */
 .product-card {
@@ -112,26 +128,24 @@ const products = [
 /* Imagen */
 .product-image {
   height: 180px;
-  background: var(--color-image-bg);
+  background: var(--color-bg-page);
   border-bottom: 3px solid var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
-.product-placeholder-icon { fill: var(--color-primary); }
-.product-tag {
+.product-real-img {
   position: absolute;
-  top: 12px; left: 12px;
-  background: var(--color-primary);
-  color: white;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
 }
+
+.product-placeholder-icon { fill: var(--color-primary); z-index: 0; position: absolute; }
 
 /* Cuerpo */
 .product-body {
@@ -154,36 +168,6 @@ const products = [
   line-height: 1.5;
   flex: 1;
 }
-.product-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-}
-.product-price {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: var(--color-accent);
-  line-height: 1;
-}
-.btn-add {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  background: var(--color-secondary);
-  color: white;
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: 0.5rem 1rem;
-  font-size: var(--font-size-btn);
-  font-family: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.15s, transform 0.1s;
-  box-shadow: var(--shadow-sm);
-}
-.btn-add:hover { filter: brightness(1.1); transform: scale(1.03); }
-.btn-add svg { fill: white; }
 
 /* CTA */
 .productos-cta {
@@ -204,4 +188,26 @@ const products = [
 }
 .cta-link:hover { color: var(--color-accent); border-color: var(--color-accent); }
 .cta-link svg { fill: currentColor; }
+
+/* Vue3 Carousel Controls Optimization */
+:deep(.carousel__prev), :deep(.carousel__next) {
+  background: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  width: 40px; height: 40px;
+}
+:deep(.carousel__prev:hover), :deep(.carousel__next:hover) {
+  filter: brightness(1.1);
+}
+:deep(.carousel__icon) {
+  fill: currentColor;
+}
+:deep(.carousel__pagination-button::after) {
+  background: rgba(128,128,128,0.3);
+  width: 10px; height: 10px; border-radius: 50%;
+}
+:deep(.carousel__pagination-button--active::after) {
+  background: var(--color-primary);
+  transform: scale(1.2);
+}
 </style>
