@@ -326,16 +326,8 @@ app.post('/api/theme', async (req, res) => {
 // ============================================================
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`\n✅ B DEL MAR 3011 API corriendo en http://localhost:${PORT}`)
+  console.log(`B DEL MAR 3011 API corriendo en http://localhost:${PORT}`)
   console.log(`   DB:    MySQL → ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`)
   console.log(`   Email: ${process.env.EMAIL_USER}`)
-  console.log(`\n→ Endpoints disponibles:`)
-  console.log(`   GET  /api/health`)
-  console.log(`   POST /api/login`)
-  console.log(`   POST /api/register`)
-  console.log(`   POST /api/forgot-password`)
-  console.log(`   POST /api/verify-code`)
-  console.log(`   POST /api/reset-password`)
-  console.log(`   GET  /api/theme`)
-  console.log(`   POST /api/theme\n`)
+
 })
