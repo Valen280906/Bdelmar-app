@@ -15,6 +15,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <router-view />
   <ToastContainer />
 </template>
 
