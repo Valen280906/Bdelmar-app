@@ -1,4 +1,6 @@
 <script setup>
+// Esta es la vista donde el admin manipula los cambios de diseño: Colores, Tipografías y Fuentes dinámicas.
+
 import { ref, computed } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'

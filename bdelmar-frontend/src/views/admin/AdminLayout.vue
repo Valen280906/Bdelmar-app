@@ -1,4 +1,7 @@
 <script setup>
+// Este archivo funciona como el contenedor de toda la sección de administración. 
+// Define la barra lateral, el encabezado y el área donde se cargan las vistas.
+
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 

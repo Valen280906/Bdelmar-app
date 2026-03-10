@@ -1,4 +1,9 @@
 <script setup>
+// Maneja todo el flujo de entrada a la app
+// Login, Registro, Recuperación de Contraseña y Verificación de correo.
+// usa una única variable mode para cambiar  entre distintas pantallas. 
+// evita tener 5 archivos distintos y centraliza la lógica de validación.
+
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 

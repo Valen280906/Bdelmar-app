@@ -1,4 +1,8 @@
 <script setup>
+//Permite al admin ajustar los tamaños rem de los títulos y párrafos por controles deslizantes
+// Al mover el slider, se actualiza el `store.typography`, 
+// lo que dispara el cambio en las variables CSS inmediatamente
+
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
 

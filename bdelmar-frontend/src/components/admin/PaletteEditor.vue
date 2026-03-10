@@ -1,4 +1,7 @@
 <script setup>
+// Panel lateral donde el admin ajustar uno por uno los colores de la marca 
+// (Principal, Acento, Fondo, etc.)
+
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
 

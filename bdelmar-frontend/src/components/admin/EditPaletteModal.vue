@@ -1,4 +1,10 @@
 <script setup>
+// Este renderiza el "Formulario Modal" donde el administrador 
+// puede crear o editar una paleta 
+
+// Mientras el user elige colores este formulario ejecuta en tiempo real el algoritmo W3C WCAG 
+// Si detecta que ciertos colores no son legibles lanza advertencias visuales inmediatas.
+
 import { ref, computed, watch } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'

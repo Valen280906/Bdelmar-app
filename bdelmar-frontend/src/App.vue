@@ -1,22 +1,24 @@
 <script setup>
-import { onMounted } from 'vue'
+// Todo lo que el usuario ve se inyecta en este archivo.
+
+import { onMounted } from 'vue' // Hook del ciclo de vida de Vue
 import { useThemeStore } from './stores/useThemeStore.js'
 import ToastContainer from './components/shared/ToastContainer.vue'
 
+// Instanciamos nuestro almacén de colores/fuentes
 const themeStore = useThemeStore()
 
+//se ejecuta cuando la página web termina de cargar en el navegador del usuario
 onMounted(() => {
   themeStore.loadFromStorage()
 })
 </script>
 
 <template>
-  <router-view />
   <ToastContainer />
 </template>
 
 <style>
-/* Google Fonts: Merriweather (títulos/serif) + Inter (ui/sans-serif) */
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* Variables tipográficas predeterminadas */

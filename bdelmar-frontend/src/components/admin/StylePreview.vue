@@ -1,10 +1,9 @@
 <script setup>
-import { useThemeStore } from '../../stores/useThemeStore.js'
+// Muestra versiones miniatura de botones, textos y menús para que el 
+// admin vea cómo quedan sus colores antes de aplicarlos 
 
+import { useThemeStore } from '../../stores/useThemeStore.js'
 const store = useThemeStore()
-// StylePreview.vue
-// Vista previa en tiempo real de todos los componentes.
-// Aisla las variables CSS pasadas por el draft.
 </script>
 
 <template>

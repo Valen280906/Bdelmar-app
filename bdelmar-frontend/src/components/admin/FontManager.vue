@@ -1,4 +1,9 @@
 <script setup>
+// Permite al admin personalizar la tipografía de 2 formas:
+// 1. Integración con APIs Esternas (Google Fonts)
+// 2. Manejo de Archivos Locales (File API & Base64)
+// Este componente también usa `DataTables` para mostrar las fuentes en una tabla con buscador y paginación.
+
 import { ref, computed } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
