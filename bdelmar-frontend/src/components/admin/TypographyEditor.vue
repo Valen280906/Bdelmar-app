@@ -45,6 +45,10 @@ function onSliderChange(key, event) {
 
   themeStore.setTypography(key, newVal)
 }
+
+function getLevel(field, val) {
+  return Math.round((parseFloat(val) - field.min) / field.step) + 1;
+}
 </script>
 
 <template>
@@ -62,7 +66,7 @@ function onSliderChange(key, event) {
       <div v-for="field in typographyFields" :key="field.key" class="typo-item">
         <div class="typo-label-row">
           <label :for="`typo-${field.key}`">{{ field.label }}</label>
-          <div class="typo-value-badge">{{ state.typography[field.key].toFixed(2) }}rem</div>
+          <div class="typo-value-badge">Tamaño {{ getLevel(field, state.typography[field.key]) }}</div>
         </div>
         <div v-if="field.note" class="typo-note">{{ field.note }}</div>
         <div class="slider-wrapper">
@@ -148,6 +152,7 @@ function onSliderChange(key, event) {
 .slider-wrapper { margin: 0.4rem 0; }
 .typo-slider {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%; height: 5px;
   border-radius: 5px;
   background: linear-gradient(to right, var(--color-primary) 0%, var(--color-bg-page) 0%);
@@ -155,6 +160,7 @@ function onSliderChange(key, event) {
 }
 .typo-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 18px; height: 18px;
   border-radius: 50%;
   background: var(--color-primary);

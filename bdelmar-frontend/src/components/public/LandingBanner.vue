@@ -72,7 +72,13 @@ function goToRegister() {
 .overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(15, 52, 96, 0.9) 0%, rgba(26, 145, 219, 0.7) 100%);
+  /* El gradiente usa la paleta activa: el primer stop es un tono mas oscuro del color primario
+     y el segundo es el color primario con mayor transparencia */
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary, #1a91db) 60%, #000) 0%,
+    color-mix(in srgb, var(--color-primary, #1a91db) 70%, transparent) 100%
+  );
 }
 
 .hero-content {

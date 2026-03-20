@@ -1,30 +1,55 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { Carousel, Slide, Navigation, Pagination } from 'vue3-carousel'
 import 'vue3-carousel/dist/carousel.css'
+import ProductCard from '../public/ProductCard.vue'
+
+const products = ref([])
+const isLoading = ref(true)
 
 // Se pueden cargar de forma dinámica con Vite:
 function getImageUrl(name) {
-  return new URL(`../../assets/${name}.jpg`, import.meta.url).href
+  if (!name) return 'https://via.placeholder.com/400x300.png?text=Imagen+No+Disponible'
+  if (name.startsWith('/uploads')) {
+    return `http://localhost:3001${name}`
+  }
+  try {
+    return new URL(`../../assets/${name}.jpg`, import.meta.url).href
+  } catch (e) {
+    return 'https://via.placeholder.com/400x300.png?text=Imagen+No+Disponible'
+  }
 }
 
-const products = [
-  { name: 'Curbina', desc: 'Carne blanca y suave, excelente para ceviches y horno.', image: getImageUrl('Corvina') },
-  { name: 'Carite', desc: 'Perfecto para freír en ruedas con limón.', image: getImageUrl('Carite') },
-  { name: 'Pargo Rojo', desc: 'El rey de la parrilla y platos horneados.', image: getImageUrl('Pargo-rojo') },
-  { name: 'Pargo Blanco', desc: 'Textura suave y sabor inconfundible.', image: getImageUrl('Pargo-blanco') },
-  { name: 'Merluza', desc: 'Filetes sin espinas, ideal para empanizar.', image: getImageUrl('Merluza') },
-  { name: 'Róbalo', desc: 'Pescado de alta gama, carne firme.', image: getImageUrl('Robalo') },
-  { name: 'Jurel', desc: 'Apto para sancochos y sudados jugosos.', image: getImageUrl('Jurel') },
-  { name: 'Tajalí', desc: 'Clásico frito de la costa venezolana.', image: getImageUrl('Tajali') },
-  { name: 'Cámara sin Concha', desc: 'Listos para paellas y al ajillo.', image: getImageUrl('Camaron') },
-  { name: 'Mojito de Raya', desc: 'Desmenuzado y listo para guisar.', image: getImageUrl('Mojito de Raya') },
-  { name: 'Cazón', desc: 'Para las tradicionales empanadas orientales.', image: getImageUrl('Mojito de Cazon') },
-]
+const fetchProducts = async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/products')
+    const json = await res.json()
+    if (json.success) {
+      products.value = json.data.map(dbProd => ({
+        id: dbProd.id,
+        name: dbProd.name,
+        category: dbProd.category || 'Pescados',
+        badge: dbProd.badge,
+        description: dbProd.description,
+        image: getImageUrl(dbProd.image),
+        basePrice: dbProd.basePrice
+      }))
+    }
+  } catch (error) {
+    console.error('Error fetching products from DB:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchProducts()
+})
 
 const breakpoints = {
   300: { itemsToShow: 1, snapAlign: 'center' },
-  700: { itemsToShow: 2, snapAlign: 'center' },
-  1024: { itemsToShow: 3, snapAlign: 'start' },
+  800: { itemsToShow: 2, snapAlign: 'center' },
+  1100: { itemsToShow: 3, snapAlign: 'start' },
 }
 </script>
 
@@ -38,20 +63,17 @@ const breakpoints = {
       </div>
 
       <div class="productos-carousel-wrapper">
-        <Carousel :breakpoints="breakpoints" :wrapAround="true">
-          <Slide v-for="product in products" :key="product.name">
-            <article class="product-card">
-              <div class="product-image">
-                <img :src="product.image" :alt="product.name" class="product-real-img" @error="e => e.target.style.display = 'none'" />
-                <svg width="52" height="52" viewBox="0 0 24 24" class="product-placeholder-icon">
-                  <path d="M21 6.5C21 8.43 19.43 10 17.5 10 15.57 10 14 8.43 14 6.5S15.57 3 17.5 3 21 4.57 21 6.5zM3.5 10C5.43 10 7 8.43 7 6.5S5.43 3 3.5 3 0 4.57 0 6.5 1.57 10 3.5 10zM12 13c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" opacity="0.35"/>
-                </svg>
-              </div>
-              <div class="product-body">
-                <h3 class="product-name">{{ product.name }}</h3>
-                <p class="product-desc">{{ product.desc }}</p>
-              </div>
-            </article>
+        <div v-if="isLoading" class="loading-catalog">
+          <svg width="40" height="40" viewBox="0 0 24 24" class="spinner">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <p>Cargando catálogo fresco del mar...</p>
+        </div>
+        <Carousel v-else-if="products.length > 0" :breakpoints="breakpoints" :wrapAround="true">
+          <Slide v-for="product in products" :key="product.id">
+            <div class="carousel-card-wrapper">
+              <ProductCard :product="product" />
+            </div>
           </Slide>
 
           <template #addons>
@@ -59,6 +81,9 @@ const breakpoints = {
             <Pagination />
           </template>
         </Carousel>
+        <div v-else class="empty-catalog">
+          <p>En este momento no hay productos registrados en el catálogo.</p>
+        </div>
       </div>
 
       <!-- CTA -->
@@ -112,61 +137,43 @@ const breakpoints = {
   padding: 10px;
 }
 
-/* Tarjeta */
-.product-card {
-  background: var(--color-bg-page);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid rgba(128,128,128,0.06);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.25s, box-shadow 0.25s;
+/* Loadings y Empty states */
+.loading-catalog, .empty-catalog {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--color-text-secondary);
 }
-.product-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+.spinner {
+  animation: spin 1.5s linear infinite;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* Imagen */
-.product-image {
-  height: 180px;
-  background: var(--color-bg-page);
-  border-bottom: 3px solid var(--color-primary);
+/* Fix del carrusel para ProductCard interna */
+.carousel-card-wrapper {
+  padding: 15px;
+  height: 100%;
+  width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
 }
-.product-real-img {
-  position: absolute;
-  inset: 0;
+:deep(.product-card) {
+  /* Forzamos a apilarse verticalmente dentro del carrusel para mantener espacio */
+  flex-direction: column !important; 
+  margin: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  z-index: 1;
 }
-
-.product-placeholder-icon { fill: var(--color-primary); z-index: 0; position: absolute; }
-
-/* Cuerpo */
-.product-body {
-  padding: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
+:deep(.product-visual) {
+  width: 100% !important;
+  min-height: 220px;
 }
-.product-name {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+:deep(.product-image) {
+  max-height: 200px !important;
 }
-.product-desc {
-  font-size: 0.83rem;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-  flex: 1;
+:deep(.product-details) {
+  width: 100% !important;
+  padding: 1.5rem !important;
 }
 
 /* CTA */

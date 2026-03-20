@@ -16,17 +16,40 @@
         
         <div class="values-grid">
           <div class="value-item">
-            <div class="value-icon">⚓</div>
+            <div class="value-icon">
+              <!-- Ancla: simbolo de compromiso y estabilidad -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary, #1a91db)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="5" r="3"/>
+                <line x1="12" y1="8" x2="12" y2="22"/>
+                <path d="M5 15s1.5 2 7 2 7-2 7-2"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
             <h4>Compromiso</h4>
             <p>Entrega puntual y responsabilidad con cada pedido.</p>
           </div>
           <div class="value-item">
-            <div class="value-icon">❄️</div>
+            <div class="value-icon">
+              <!-- Copo de nieve: cadena de frio y calidad -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary, #1a91db)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="2" x2="12" y2="22"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <polyline points="17 7 12 2 7 7"/>
+                <polyline points="17 17 12 22 7 17"/>
+                <polyline points="7 7 2 12 7 17"/>
+                <polyline points="17 7 22 12 17 17"/>
+              </svg>
+            </div>
             <h4>Calidad Total</h4>
             <p>Monitoreo térmico desde la pesca hasta su recepción.</p>
           </div>
           <div class="value-item">
-            <div class="value-icon">🤝</div>
+            <div class="value-icon">
+              <!-- Apretar manos: alianza comercial -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary, #1a91db)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </div>
             <h4>Alianza</h4>
             <p>Buscamos el crecimiento mutuo con nuestros socios comerciales.</p>
           </div>
@@ -48,7 +71,7 @@
 <style scoped>
 .landing-nosotros {
   padding: 6rem 1.5rem;
-  background: white;
+  background: var(--color-bg-page, white);
 }
 
 .container {
@@ -61,7 +84,7 @@
 }
 
 .title {
-  color: #1e293b;
+  color: var(--color-text-primary, #1e293b);
   font-size: 2.5rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
@@ -76,7 +99,7 @@
 }
 
 .description {
-  color: #64748b;
+  color: var(--color-text-secondary, #64748b);
   font-size: 1.1rem;
   line-height: 1.7;
   margin-bottom: 1.5rem;
@@ -90,21 +113,29 @@
 }
 
 .value-item h4 {
-  color: #1e293b;
+  color: var(--color-text-primary, #1e293b);
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
 }
 
 .value-item p {
-  color: #64748b;
+  color: var(--color-text-secondary, #64748b);
   font-size: 0.9rem;
   line-height: 1.4;
 }
 
 .value-icon {
-  font-size: 2rem;
+  width: 44px;
+  height: 44px;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-primary, #1a91db) 10%, transparent);
+  border-radius: 10px;
+  padding: 8px;
 }
+.value-icon svg { width: 100%; height: 100%; }
 
 .nosotros-image {
   width: 100%;

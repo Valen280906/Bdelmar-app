@@ -5,11 +5,33 @@ const cors = require('cors')
 const mysql = require('mysql2/promise')
 const bcrypt = require('bcryptjs')
 const nodemailer = require('nodemailer')
+const multer = require('multer')
+const fs = require('fs')
+const path = require('path')
 require('dotenv').config()
 
 const app = express()
 app.use(cors())
 app.use(express.json())
+
+// Configuración de almacenamiento para multer
+const uploadDir = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir)
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname))
+  }
+})
+const upload = multer({ storage: storage })
+
+// Rutas estáticas
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 
 const pool = mysql.createPool({
@@ -320,6 +342,76 @@ app.post('/api/theme', async (req, res) => {
     res.status(500).json({ success: false, error: err.message })
   }
 })
+
+// ============================================================
+// === PRODUCTS ===============================================
+// ============================================================
+
+// POST /api/upload → Subir archivo
+app.post('/api/upload', upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No se subió ningún archivo' })
+  const imageUrl = `/uploads/${req.file.filename}`
+  res.json({ success: true, imageUrl })
+})
+
+// GET /api/products → Lista de productos
+app.get('/api/products', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM products ORDER BY id ASC')
+    res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error('GET /api/products error:', err.message)
+    res.status(500).json({ success: false, error: 'Error obteniendo productos' })
+  }
+})
+
+// POST /api/products → Crear un producto
+app.post('/api/products', async (req, res) => {
+  const { name, description, category, badge, image, basePrice } = req.body
+  if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
+
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO products (name, description, category, badge, image, basePrice) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, description, category || '', badge || '', image || '', basePrice || 0]
+    )
+    res.json({ success: true, message: 'Producto creado exitosamente', id: result.insertId })
+  } catch (err) {
+    console.error('POST /api/products error:', err.message)
+    res.status(500).json({ success: false, error: 'Error creando producto' })
+  }
+})
+
+// PUT /api/products/:id → Actualizar producto
+app.put('/api/products/:id', async (req, res) => {
+  const { id } = req.params
+  const { name, description, category, badge, image, basePrice } = req.body
+  if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
+
+  try {
+    await pool.query(
+      'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, updated_at = NOW() WHERE id = ?',
+      [name, description, category, badge, image, basePrice, id]
+    )
+    res.json({ success: true, message: 'Producto actualizado' })
+  } catch (err) {
+    console.error('PUT /api/products error:', err.message)
+    res.status(500).json({ success: false, error: 'Error actualizando producto' })
+  }
+})
+
+// DELETE /api/products/:id → Eliminar producto
+app.delete('/api/products/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    await pool.query('DELETE FROM products WHERE id = ?', [id])
+    res.json({ success: true, message: 'Producto eliminado' })
+  } catch (err) {
+    console.error('DELETE /api/products error:', err.message)
+    res.status(500).json({ success: false, error: 'Error eliminando producto' })
+  }
+})
+
 
 // ============================================================
 // === INICIAR SERVIDOR =======================================

@@ -44,7 +44,7 @@ const services = [
 <style scoped>
 .landing-services {
   padding: 6rem 1.5rem;
-  background: #f8fafc;
+  background: var(--color-bg-page, #f8fafc);
 }
 
 .container {
@@ -69,7 +69,7 @@ const services = [
 }
 
 .title {
-  color: #1e293b;
+  color: var(--color-text-primary, #1e293b);
   font-size: 2.5rem;
   font-weight: 800;
   margin-bottom: 1.5rem;
@@ -77,7 +77,7 @@ const services = [
 }
 
 .description {
-  color: #64748b;
+  color: var(--color-text-secondary, #64748b);
   font-size: 1.1rem;
   line-height: 1.6;
 }
@@ -89,11 +89,11 @@ const services = [
 }
 
 .service-card {
-  background: white;
+  background: var(--color-bg-card, white);
   padding: 3rem 2rem;
   border-radius: 20px;
-  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: var(--shadow-sm, 0 10px 30px -10px rgba(0,0,0,0.05));
+  border: 1px solid rgba(128,128,128,0.06);
   transition: transform 0.3s, box-shadow 0.3s;
   text-align: center;
 }
@@ -117,13 +117,13 @@ const services = [
 
 .service-title {
   font-size: 1.4rem;
-  color: #1e293b;
+  color: var(--color-text-primary, #1e293b);
   font-weight: 700;
   margin-bottom: 1rem;
 }
 
 .service-desc {
-  color: #64748b;
+  color: var(--color-text-secondary, #64748b);
   line-height: 1.6;
 }
 </style>

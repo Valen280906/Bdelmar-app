@@ -82,8 +82,9 @@ function openLegal(id) {
 
 <style scoped>
 .landing-footer {
-  background: #0f172a;
-  color: #94a3b8;
+  /* Genera un tono oscuro derivado del color primario de la paleta activa */
+  background: color-mix(in srgb, var(--color-bg-page, #f0f2f5) 5%, #0f172a);
+  color: color-mix(in srgb, var(--color-text-primary, #121212) 60%, #94a3b8);
   padding: 5rem 1.5rem 2rem;
 }
 
@@ -120,7 +121,7 @@ function openLegal(id) {
 .brand-name {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #cbd5e1;
+  color: color-mix(in srgb, var(--color-primary, #1a91db) 60%, white);
   text-transform: uppercase;
 }
 .brand-number {
@@ -145,15 +146,20 @@ function openLegal(id) {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  color: #e2e8f0;
+  /* Hereda el color del footer que ya usa color-mix dinamico */
+  color: inherit;
   text-decoration: none;
   transition: color 0.2s;
+  opacity: 0.85;
 }
 .contact-item:hover {
   color: var(--color-primary, #38bdf8);
+  opacity: 1;
 }
 .contact-item svg {
   color: var(--color-primary, #38bdf8);
+  opacity: 1;
+  flex-shrink: 0;
 }
 
 /* Columns */
@@ -172,7 +178,7 @@ function openLegal(id) {
   gap: 1rem;
 }
 .link-list a {
-  color: #94a3b8;
+  color: color-mix(in srgb, var(--color-primary, #1a91db) 30%, #94a3b8);
   text-decoration: none;
   transition: color 0.2s;
   display: inline-flex;

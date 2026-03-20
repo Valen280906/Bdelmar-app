@@ -1,5 +1,5 @@
-// Guarda qué colores y fuentes eligió el usuario e inyectamos en el navegador
-// para que toda la página cambie sin tener que recargarla
+// Guarda que colores y fuentes eligio el usuario e inyecta las variables en el navegador
+// para que toda la pagina cambie sin necesidad de recargarla.
 import { defineStore } from 'pinia'
 import { reactive, watch } from 'vue'
 
@@ -55,52 +55,54 @@ const FONTS_DEFAULT = [
 ]
 
 export const useThemeStore = defineStore('theme', () => {
-  // reactive() hace que si alguna de estas variables cambia en memoria, Vue actualice
-  // los componentes de la pantalla que las estén usando.
+  // reactive() hace que Vue actualice automaticamente los componentes
+  // cada vez que alguna de estas propiedades cambia.
 
   const state = reactive({
     mode: 'claro',
 
-    paletas: [ // Lista de las paletas guardadas
+    paletas: [
       { ...PALETA_PRINCIPAL, id: 1, active: true },
       { ...PALETA_OSCURA, id: 2, active: false },
       { ...PALETA_DALTONICO, id: 3, active: false },
     ],
 
-    // Guarda los colores que se están mostrando en la página 
+    // Colores actualmente aplicados en el DOM
     currentColors: { ...PALETA_PRINCIPAL.colors },
 
-    draftColors: null, //Guarda los colores mientras el admin los edita en el previu.
+    draftColors: null,
     editingPaletteId: null,
     typography: { ...TYPOGRAPHY_DEFAULT },
 
+    // Configuraciones de tipografia guardadas, con la misma logica que las paletas
+    typographyConfigs: [
+      { id: 1, name: 'Predeterminada', isDefault: true, active: true, values: { ...TYPOGRAPHY_DEFAULT } }
+    ],
+    nextTypoId: 2,
 
-    // Lista de fuentes cargadas en el sistema
     fonts: [...FONTS_DEFAULT],
-    nextId: 4,      // Contador autoincremental para las nuevas paletas y fuentes
+    nextId: 4,
     nextFontId: 3,
   })
 
-  // Toma las variables JSON y las inyecta como variables CSS directo al HTML 
+  // Convierte el objeto de colores en variables CSS inyectadas directamente en el :root del documento
   function applyToDom(colors, typo) {
     const r = document.documentElement.style
-    const c = colors || state.currentColors // Si no le pasamos colores, usa el estado actual 
+    const c = colors || state.currentColors
     const t = typo || state.typography
 
-    // Esto transforma nuestro objeto JS en una regla CSS
     r.setProperty('--color-primary', c.primary)
     r.setProperty('--color-accent', c.accent)
     r.setProperty('--color-secondary', c.secondary)
     r.setProperty('--color-bg-page', c.bgPage)
     r.setProperty('--color-text-primary', c.textPrimary)
 
-
-    // Usamos color-mix() para crear colores pasteles o complementarios 
+    // color-mix() genera tonos derivados sin necesidad de definirlos manualmente
     r.setProperty('--color-bg-card', `color-mix(in srgb, ${c.bgPage} 96%, ${c.textPrimary})`)
     r.setProperty('--color-text-secondary', `color-mix(in srgb, ${c.textPrimary} 70%, transparent)`)
     r.setProperty('--color-image-bg', `color-mix(in srgb, ${c.bgPage} 80%, ${c.primary})`)
 
-    // Convierte nuestro hexadecimal a sistema RGB para inyectarlo dentro de un box-shadow
+    // La conversion a RGB es necesaria para usar el color primario dentro de box-shadow con opacidad
     const rgb = hexToRgb(c.primary)
     if (rgb) {
       r.setProperty('--shadow-sm', `0 4px 12px rgba(${rgb}, 0.12)`)
@@ -108,7 +110,6 @@ export const useThemeStore = defineStore('theme', () => {
       r.setProperty('--shadow-lg', `0 20px 40px rgba(${rgb}, 0.22)`)
     }
 
-    // Sobreescribimos los tamaños rem globales para todos los titulares y botones.
     r.setProperty('--font-size-h1', `${t.h1}rem`)
     r.setProperty('--font-size-h2', `${t.h2}rem`)
     r.setProperty('--font-size-h3', `${t.h3}rem`)
@@ -116,31 +117,29 @@ export const useThemeStore = defineStore('theme', () => {
     r.setProperty('--font-size-btn', `${t.p}rem`)
     r.setProperty('--font-size-menu', `${t.p}rem`)
 
-    // Busca qué fuentes están marcadas como activas
     const headingFont = state.fonts.find(f => f.role === 'heading' && f.active)
     const bodyFont = state.fonts.find(f => f.role === 'body' && f.active)
 
     if (headingFont) r.setProperty('--font-family-heading', headingFont.cssFamily)
     if (bodyFont) r.setProperty('--font-family-body', bodyFont.cssFamily)
 
-      // Integramos Google Fonts e inyectamos las etiquetas <link> 
-      ;[headingFont, bodyFont].forEach(f => {
-        if (f && !f.isDefault) {
-          const linkId = `gfont-${f.name.replace(/\s+/g, '-').toLowerCase()}`
-          if (!document.getElementById(linkId)) { // Por si acaso no hemos creado este <link> antes
-            const link = document.createElement('link')
-            link.id = linkId
-            link.rel = 'stylesheet'
-            link.href = `https://fonts.googleapis.com/css2?family=${f.name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
-            document.head.appendChild(link)
-          }
+    // Inyecta el stylesheet de Google Fonts para fuentes externas si aun no fue cargado
+    ;[headingFont, bodyFont].forEach(f => {
+      if (f && !f.isDefault) {
+        const linkId = `gfont-${f.name.replace(/\s+/g, '-').toLowerCase()}`
+        if (!document.getElementById(linkId)) {
+          const link = document.createElement('link')
+          link.id = linkId
+          link.rel = 'stylesheet'
+          link.href = `https://fonts.googleapis.com/css2?family=${f.name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
+          document.head.appendChild(link)
         }
-      })
+      }
+    })
   }
 
-  // Helpers 
   function hexToRgb(hex) {
-    //Convertimos de hexadecimal a RGB para poder aplicar opacidad.
+    // Convierte un color hexadecimal a los componentes RGB necesarios para rgba()
     if (!hex) return null
     const clean = hex.replace('#', '')
     if (clean.length !== 6) return null
@@ -151,8 +150,8 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function getDraftStyles() {
-    // Pinta el previu tomando el color actual o el que se esta editando
-    // Calcula todas las sombras y contrastes y devuelve un objeto CSS
+    // Devuelve un objeto de variables CSS para el panel de vista previa en tiempo real.
+    // Usa el borrador activo o los colores actuales si no hay borrador.
     const c = state.draftColors || state.currentColors
     const t = state.typography
     const rgb = hexToRgb(c.primary)
@@ -179,8 +178,7 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function setColor(key, value) {
-    // Escucha en tiempo real cuando se usa el selector de color
-    // Si estamos editando desde el panel inyecta en el borrador
+    // Actualiza un color en tiempo real mientras el admin usa el selector de color
     if (state.draftColors) {
       state.draftColors[key] = value
     } else {
@@ -189,16 +187,16 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
-  // Sistema dde Borradores
+  // ----- Sistema de borradores -----
 
   function startDraft() {
-    // Creamos la clonación
+    // Crea una copia de los colores actuales para editar sin afectar el estado publicado
     state.draftColors = { ...state.currentColors }
     state.editingPaletteId = null
   }
 
   function startDraftFrom(id) {
-    // carga los datos de una paleta antigua guardada y crea un clon de esa.
+    // Carga los colores de una paleta existente en el borrador para editarla
     const paleta = state.paletas.find(p => p.id === id)
     if (paleta) {
       state.draftColors = { ...paleta.colors }
@@ -210,7 +208,6 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function guardarCambiosEdicion() {
-    // Tomamos los colores probados en el borrador y los guardamos
     if (!state.draftColors) return false
 
     if (state.editingPaletteId) {
@@ -222,10 +219,9 @@ export const useThemeStore = defineStore('theme', () => {
       } else {
         state.currentColors = { ...state.draftColors }
         applyToDom()
-        persistToStorage() // Llamamos a persistencia local
+        persistToStorage()
       }
     }
-    // Vaciamos borrador y la memoria temporal
     state.draftColors = null
     state.editingPaletteId = null
     return true
@@ -237,38 +233,92 @@ export const useThemeStore = defineStore('theme', () => {
     applyToDom()
   }
 
-  // Gestion de colores y paletas
+  // ----- Gestion de tipografia -----
 
   function setTypography(key, value) {
-    state.typography[key] = value // Actualiza un tamaño de fuente específico 
-    applyToDom() // Repinta la página
+    state.typography[key] = value
+    applyToDom()
   }
 
+  // Guarda los valores actuales de tipografia como una configuracion nombrada.
+  // Tambien persiste las fuentes activas seleccionadas por el admin.
+  function guardarConfigTypo(nombre, headingFontId, bodyFontId) {
+    const nueva = {
+      id: state.nextTypoId++,
+      name: nombre || `Configuracion ${state.nextTypoId}`,
+      isDefault: false,
+      active: false,
+      values: { ...state.typography },
+      headingFontId: headingFontId || null,
+      bodyFontId: bodyFontId || null,
+    }
+    state.typographyConfigs.push(nueva)
+    persistToStorage()
+    return nueva.id
+  }
+
+  // Aplica los valores de una configuracion guardada al estado actual de tipografia.
+  // Si la configuracion tiene fuentes asociadas, las activa tambien.
+  function activarConfigTypo(id) {
+    state.typographyConfigs.forEach(c => c.active = false)
+    const config = state.typographyConfigs.find(c => c.id === id)
+    if (!config) return false
+    config.active = true
+    Object.assign(state.typography, config.values)
+    if (config.headingFontId) activateFont(config.headingFontId)
+    if (config.bodyFontId)    activateFont(config.bodyFontId)
+    applyToDom()
+    persistToStorage()
+    return true
+  }
+
+  // Elimina una configuracion. Las predeterminadas y la activa no pueden eliminarse.
+  function eliminarConfigTypo(id) {
+    const idx = state.typographyConfigs.findIndex(c => c.id === id)
+    if (idx === -1) return false
+    const c = state.typographyConfigs[idx]
+    if (c.isDefault || c.active) return false
+    const backup = { ...state.typographyConfigs[idx] }
+    state.typographyConfigs.splice(idx, 1)
+    persistToStorage()
+    return backup
+  }
+
+  // Renombra una configuracion de tipografia existente
+  function editarNombreConfigTypo(id, nuevoNombre) {
+    const config = state.typographyConfigs.find(c => c.id === id)
+    if (!config || config.isDefault) return false
+    config.name = nuevoNombre
+    persistToStorage()
+    return true
+  }
+
+  // ----- Cambio de modo visual -----
+
   function setMode(mode) {
-    // Cambia todo el tema de la página de un solo golpe 
+    // Aplica un modo completo de paleta sin afectar los ajustes de las paletas guardadas
     state.mode = mode
     if (mode === 'oscuro') {
       state.currentColors = { ...PALETA_OSCURA.colors }
     } else if (mode === 'daltonico') {
       state.currentColors = { ...PALETA_DALTONICO.colors }
     } else {
-      // Si vuelve a claro buscamos si tiene alguna paleta "activa" 
-      // y sino, restauramos la paleta original.
       const activa = state.paletas.find(p => p.active)
       if (activa) state.currentColors = { ...activa.colors }
       else state.currentColors = { ...PALETA_PRINCIPAL.colors }
     }
 
-    // Limpiamos cualquier borrador antes de forzar el cambio de modo
     state.draftColors = null
     state.editingPaletteId = null
     applyToDom()
-    persistToStorage() // Guardamos el cambio de modo 
+    persistToStorage()
   }
 
+  // ----- Gestion de paletas -----
+
   function activarPaleta(id) {
-    state.paletas.forEach(p => p.active = false)// Apagamos todas las paletas
-    const activa = state.paletas.find(p => p.id === id)// Encendemos solo la que el user clickeo
+    state.paletas.forEach(p => p.active = false)
+    const activa = state.paletas.find(p => p.id === id)
     if (activa) {
       activa.active = true
       state.currentColors = { ...activa.colors }
@@ -295,40 +345,33 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function eliminarPaleta(id) {
-    const idx = state.paletas.findIndex(p => p.id === id) // Buscamos en qué posición está la paleta a borrar
-    if (idx === -1) return false // No existe
+    const idx = state.paletas.findIndex(p => p.id === id)
+    if (idx === -1) return false
 
     const p = state.paletas[idx]
-    // No se pueden borrar las paletas de sist. ni la que está en uso
     if (p.isDefault || p.active) return false
 
-    const backup = { ...state.paletas[idx] } // Hacemos un respaldo antes de borrarla
-
-    // remueve un elemento desde la posición idx
+    const backup = { ...state.paletas[idx] }
     state.paletas.splice(idx, 1)
     persistToStorage()
-
-    // Devolvemos el backup para Deshacer si el usuario se arrepiente
     return backup
   }
 
   function restaurarPaleta(paleta) {
-    // Esta función es la que llama al botón Deshacer 
+    // Esta función es la que llama al botón Deshacer
     state.paletas.push(paleta)
-    // Ordenamos por ID 
+    // Ordenamos por ID
     state.paletas.sort((a, b) => a.id - b.id)
     persistToStorage()
   }
 
   function editarPaleta(id, { name, colors, type }) {
     const p = state.paletas.find(p => p.id === id)
-    // No editamos si no existe o si es una de las 3 por defecto
     if (!p || p.isDefault) return false
     if (name) p.name = name
     if (colors) p.colors = { ...p.colors, ...colors }
     if (type) p.type = type
 
-    // Si la paleta que editamosera la que estaba usándose ahora mismo se refleja en el DOM
     if (p.active) {
       state.currentColors = { ...p.colors }
       applyToDom()
@@ -337,7 +380,7 @@ export const useThemeStore = defineStore('theme', () => {
     return true
   }
 
-  // Fuentes 
+  // ----- Gestion de fuentes -----
   function addFont(fontData) {
     const font = {
       id: `f${state.nextFontId++}`,
@@ -371,7 +414,7 @@ export const useThemeStore = defineStore('theme', () => {
   function activateFont(id) {
     const font = state.fonts.find(f => f.id === id)
     if (!font) return false
-    // Desactivar otras del mismo rol
+    // Desactiva todas las fuentes del mismo rol antes de activar la nueva
     state.fonts.filter(f => f.role === font.role).forEach(f => f.active = false)
     font.active = true
     applyToDom()
@@ -379,26 +422,27 @@ export const useThemeStore = defineStore('theme', () => {
     return true
   }
 
-  // Para que todo este estado no se pierda al apagar el servidor
-  // guardamos en el disco duro del visitante.
+  // ----- Persistencia en localStorage -----
 
   function persistToStorage() {
     try {
-      localStorage.setItem('bdelmar_theme', JSON.stringify({// convierte objetos o arreglos en texto 
+      localStorage.setItem('bdelmar_theme', JSON.stringify({
         paletas: state.paletas,
         currentColors: state.currentColors,
         typography: state.typography,
+        typographyConfigs: state.typographyConfigs,
+        nextTypoId: state.nextTypoId,
         mode: state.mode,
         nextId: state.nextId,
-        // guardamos solo la meta-info porque sobrepasa los MB
+        // Los dataUrl de fuentes locales se omiten porque pueden superar el limite de localStorage
         fonts: state.fonts.filter(f => !f.dataUrl),
         nextFontId: state.nextFontId,
       }))
-    } catch (e) { /* Manejo silencioso para navegadores en modo incógnito muy estricto */ }
+    } catch (e) { /* Error silencioso en navegadores con modo privado estricto */ }
   }
 
   function loadFromStorage() {
-    // Apenas arranca la web, lee el disco y pinta los colores guardados.
+    // Lee el estado guardado en localStorage y lo restaura al iniciar la aplicacion
     try {
       const raw = localStorage.getItem('bdelmar_theme')
       if (raw) {
@@ -407,12 +451,14 @@ export const useThemeStore = defineStore('theme', () => {
         if (saved.paletas) state.paletas = saved.paletas
         if (saved.currentColors) state.currentColors = saved.currentColors
         if (saved.typography) Object.assign(state.typography, saved.typography)
+        if (saved.typographyConfigs) state.typographyConfigs = saved.typographyConfigs
+        if (saved.nextTypoId) state.nextTypoId = saved.nextTypoId
         if (saved.mode) state.mode = saved.mode
         if (saved.nextId) state.nextId = saved.nextId
         if (saved.fonts) state.fonts = saved.fonts
         if (saved.nextFontId) state.nextFontId = saved.nextFontId
       }
-    } catch (e) { /* silent */ }
+    } catch (e) { /* Error silencioso */ }
     applyToDom()
   }
 
@@ -438,5 +484,9 @@ export const useThemeStore = defineStore('theme', () => {
     applyToDom,
     hexToRgb,
     persistToStorage,
+    guardarConfigTypo,
+    activarConfigTypo,
+    eliminarConfigTypo,
+    editarNombreConfigTypo,
   }
 })

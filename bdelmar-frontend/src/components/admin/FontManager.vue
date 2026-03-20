@@ -1,10 +1,10 @@
 <script setup>
-// Permite al admin personalizar la tipografía de 2 formas:
-// 1. Integración con APIs Esternas (Google Fonts)
-// 2. Manejo de Archivos Locales (File API & Base64)
-// Este componente también usa `DataTables` para mostrar las fuentes en una tabla con buscador y paginación.
+// Permite al admin personalizar la tipografia de dos formas:
+// 1. Integracion con Google Fonts (carga el stylesheet via <link>)
+// 2. Archivo local (File API, convierte a base64 y registra con FontFace)
+// Usa DataTables para mostrar la lista de fuentes con buscador y paginacion.
 
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
 import ConfirmDialog from '../shared/ConfirmDialog.vue'
@@ -125,7 +125,25 @@ function activateFont(font) {
   success(`Fuente "${font.name}" aplicada como ${ROLE_LABELS[font.role]}`)
 }
 
-// Preview dinámica de la fuente al pasar el mouse
+// Precarga los stylesheets de Google Fonts para todas las fuentes externas registradas.
+// Esto es necesario para que la columna de vista previa muestre la tipografia real
+// en lugar del fallback del sistema, incluso antes de que la fuente sea activada.
+onMounted(() => {
+  state.fonts.forEach(font => {
+    if (!font.isDefault && !font.dataUrl) {
+      const linkId = `gfont-${font.name.replace(/\s+/g, '-').toLowerCase()}`
+      if (!document.getElementById(linkId)) {
+        const link = document.createElement('link')
+        link.id = linkId
+        link.rel = 'stylesheet'
+        link.href = `https://fonts.googleapis.com/css2?family=${font.name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
+        document.head.appendChild(link)
+      }
+    }
+  })
+})
+
+// Devuelve el estilo de familia tipografica para aplicarlo en la celda de vista previa
 function previewFontStyle(font) {
   return { fontFamily: font.cssFamily }
 }

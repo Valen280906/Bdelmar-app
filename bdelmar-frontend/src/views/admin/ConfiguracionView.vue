@@ -1,7 +1,7 @@
 <script setup>
-// Esta es la vista donde el admin manipula los cambios de diseño: Colores, Tipografías y Fuentes dinámicas.
+// Vista de administracion de diseno: gestion de paletas, tipografias y fuentes.
 
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useThemeStore } from '../../stores/useThemeStore.js'
 import { useToast } from '../../composables/useToast.js'
 import DataTable from 'datatables.net-vue3'
@@ -19,18 +19,21 @@ const themeStore = useThemeStore()
 const state = themeStore.state
 const { success, error, info } = useToast()
 
-// --- Tabs
-const activeTab = ref('paletas') // 'paletas' | 'editor' | 'tipografia' | 'fuentes'
+// Las 5 claves de color base de cada paleta (se excluyen los derivados calculados)
+const COLOR_KEYS = ['primary', 'accent', 'secondary', 'bgPage', 'textPrimary']
+
+// ----- Tabs -----
+const activeTab = ref('paletas')
 
 function changeTab(key) {
-  // Si nos vamos del editor sin guardar, se pierde el borrador (según solicitud del usuario)
+  // Al salir del editor sin guardar el borrador se descarta
   if (activeTab.value === 'editor' && key !== 'editor') {
     themeStore.discardDraft()
   }
   activeTab.value = key
 }
 
-// --- Paleta nueva
+// ----- Paleta nueva -----
 const newPaletteName = ref('')
 const newPaletteType = ref('claro')
 const showSaveDialog = ref(false)
@@ -125,12 +128,96 @@ function discardDraft() {
   info('Cambios descartados')
 }
 
-// Copy hex
+// Copia el valor hexadecimal al portapapeles
 function copyHex(hex) {
   navigator.clipboard.writeText(hex).then(() => {
-    info(`¡Copiado: ${hex}!`)
+    info(`Copiado: ${hex}`)
   })
 }
+
+// ----- Gestion de configuraciones de tipografia -----
+
+const showSaveTypoDialog    = ref(false)
+const newTypoName           = ref('')
+const selectedHeadingFontId = ref('')
+const selectedBodyFontId    = ref('')
+const showDeleteTypoConfirm = ref(false)
+const deletingTypoConfig    = ref(null)
+const editingTypoId         = ref(null)
+const editingTypoName       = ref('')
+
+// Computed: fuentes disponibles por rol para los selectores del dialogo
+function fontsOfRole(role) {
+  return state.fonts.filter(f => f.role === role)
+}
+
+function openSaveTypoDialog() {
+  // Precarga las fuentes actualmente activas como valor inicial del selector
+  const hf = state.fonts.find(f => f.role === 'heading' && f.active)
+  const bf = state.fonts.find(f => f.role === 'body'    && f.active)
+  selectedHeadingFontId.value = hf ? hf.id : ''
+  selectedBodyFontId.value    = bf ? bf.id : ''
+  showSaveTypoDialog.value = true
+}
+
+function saveTypoConfig() {
+  const nm = newTypoName.value.trim() || `Config ${state.nextTypoId}`
+  themeStore.guardarConfigTypo(
+    nm,
+    selectedHeadingFontId.value || null,
+    selectedBodyFontId.value    || null
+  )
+  success(`Configuracion "${nm}" guardada`)
+  newTypoName.value = ''
+  showSaveTypoDialog.value = false
+}
+
+function activarTypoConfig(config) {
+  themeStore.activarConfigTypo(config.id)
+  success(`Configuracion "${config.name}" aplicada`)
+}
+
+function requestDeleteTypo(config) {
+  deletingTypoConfig.value = config
+  showDeleteTypoConfirm.value = true
+}
+
+function confirmDeleteTypo() {
+  const c = deletingTypoConfig.value
+  const backup = themeStore.eliminarConfigTypo(c.id)
+  if (backup) {
+    success(`Configuracion "${c.name}" eliminada`, 'success', () => {
+      state.typographyConfigs.push(backup)
+      state.typographyConfigs.sort((a, b) => a.id - b.id)
+      themeStore.persistToStorage()
+      info(`Configuracion "${c.name}" restaurada`)
+    })
+  } else {
+    error('No se puede eliminar esta configuracion')
+  }
+  showDeleteTypoConfirm.value = false
+  deletingTypoConfig.value = null
+}
+
+function startEditTypoName(config) {
+  editingTypoId.value  = config.id
+  editingTypoName.value = config.name
+}
+
+function saveEditTypoName() {
+  const nm = editingTypoName.value.trim()
+  if (!nm) { error('El nombre no puede estar vacio'); return }
+  themeStore.editarNombreConfigTypo(editingTypoId.value, nm)
+  success('Nombre actualizado')
+  editingTypoId.value = null
+  editingTypoName.value = ''
+}
+
+function cancelEditTypoName() {
+  editingTypoId.value = null
+  editingTypoName.value = ''
+}
+
 const dtOptions = {
   language: {
     search: "Buscar:",
@@ -234,7 +321,8 @@ const dtOptions = {
               <!-- Swatches -->
               <td @click.stop>
                 <div class="swatches">
-                  <div v-for="(val, key) in paleta.colors" :key="key" class="swatch" :style="{ background: val }" :title="key" />
+                  <!-- Solo se muestran las 5 claves base, no los colores derivados -->
+                  <div v-for="key in COLOR_KEYS" :key="key" class="swatch" :style="{ background: paleta.colors[key] }" :title="key" />
                 </div>
               </td>
               <!-- Nombre -->
@@ -321,8 +409,107 @@ const dtOptions = {
       </div>
     </div>
 
-    <!-- === TAB: TIPOGRAFÍA === -->
+    <!-- === TAB: TIPOGRAFIA === -->
     <div v-if="activeTab === 'tipografia'" class="tab-content">
+
+      <!-- Toolbar con boton para guardar la configuracion actual -->
+      <div class="palettes-toolbar">
+        <h2 class="section-title">Tipografia</h2>
+        <button class="btn btn-secondary" @click="openSaveTypoDialog">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+          Guardar configuracion actual
+        </button>
+      </div>
+
+      <!-- Tabla de configuraciones de tipografia guardadas -->
+      <div class="table-wrapper">
+        <DataTable
+          :key="state.typographyConfigs.map(c => c.id + (c.active ? 'a' : 'i')).join('-')"
+          class="palettes-table display"
+          :options="dtOptions"
+        >
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>H1</th>
+              <th>H2</th>
+              <th>H3</th>
+              <th>P</th>
+              <th>Activa</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="config in state.typographyConfigs"
+              :key="config.id"
+              :class="{ 'row-active': config.active }"
+            >
+              <!-- Nombre con edicion inline -->
+              <td>
+                <div v-if="editingTypoId === config.id" class="inline-edit-row">
+                  <input
+                    v-model="editingTypoName"
+                    class="inline-input"
+                    @keyup.enter="saveEditTypoName"
+                    @keyup.escape="cancelEditTypoName"
+                  />
+                  <button class="act-btn act-btn--activate" @click="saveEditTypoName">Guardar</button>
+                  <button class="act-btn act-btn--delete" @click="cancelEditTypoName">Cancelar</button>
+                </div>
+                <div v-else class="inline-name-row">
+                  <span class="palette-name">{{ config.name }}</span>
+                  <span v-if="config.isDefault" class="badge-preset">Predeterminada</span>
+                </div>
+              </td>
+              <td class="typo-cell">{{ config.values.h1.toFixed(1) }}rem</td>
+              <td class="typo-cell">{{ config.values.h2.toFixed(1) }}rem</td>
+              <td class="typo-cell">{{ config.values.h3.toFixed(1) }}rem</td>
+              <td class="typo-cell">{{ config.values.p.toFixed(2) }}rem</td>
+              <td>
+                <span v-if="config.active" class="check-active">Activa</span>
+                <span v-else class="text-muted">—</span>
+              </td>
+              <td @click.stop>
+                <div class="act-row">
+                  <button
+                    v-if="!config.active"
+                    class="act-btn act-btn--activate"
+                    @click="activarTypoConfig(config)"
+                    title="Aplicar esta configuracion"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    Activar
+                  </button>
+                  <button
+                    v-if="!config.isDefault && editingTypoId !== config.id"
+                    class="act-btn act-btn--edit"
+                    @click="startEditTypoName(config)"
+                    title="Renombrar"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                    Renombrar
+                  </button>
+                  <button
+                    v-if="!config.isDefault && !config.active"
+                    class="act-btn act-btn--delete"
+                    @click="requestDeleteTypo(config)"
+                    title="Eliminar configuracion"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    Borrar
+                  </button>
+                  <span v-if="config.isDefault" class="act-locked" title="Configuracion predeterminada">
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </DataTable>
+      </div>
+
+      <!-- Editor de sliders + vista previa -->
       <div class="editor-layout">
         <div class="editors-panel">
           <TypographyEditor />
@@ -379,12 +566,84 @@ const dtOptions = {
 
     <ConfirmDialog
       :show="showDeleteConfirm"
-      title="¿Eliminar paleta?"
-      :message="`¿Deseas eliminar la paleta &quot;${deletingPaleta?.name}&quot;? Podrás deshacerlo durante 6 segundos después.`"
+      title="Eliminar paleta"
+      :message="`Deseas eliminar la paleta &quot;${deletingPaleta?.name}&quot;? Podras deshacerlo durante 6 segundos.`"
       confirm-label="Eliminar"
       :danger="true"
       @confirm="confirmDelete"
       @cancel="showDeleteConfirm = false"
+    />
+
+    <!-- Dialogo guardar configuracion de tipografia: layout compacto en 2 columnas -->
+    <teleport to="body">
+      <transition name="dialog-fade">
+        <div v-if="showSaveTypoDialog" class="dialog-overlay" @click.self="showSaveTypoDialog = false">
+          <div class="save-dialog save-dialog--typo">
+            <h3>Guardar configuracion de tipografia</h3>
+
+            <!-- Fila compacta: nombre + escala de valores -->
+            <div class="typo-save-grid">
+              <!-- Columna izquierda: nombre y escalas -->
+              <div class="typo-save-left">
+                <div class="save-field">
+                  <label>Nombre</label>
+                  <input
+                    v-model="newTypoName"
+                    placeholder="Ej: Titulos grandes"
+                    @keyup.enter="saveTypoConfig"
+                    class="save-input"
+                  />
+                </div>
+                <!-- Valores rem en una fila compacta -->
+                <div class="typo-vals-row">
+                  <div class="typo-val-item" v-for="k in ['h1','h2','h3','p']" :key="k">
+                    <span class="typo-val-label">{{ k.toUpperCase() }}</span>
+                    <span class="typo-val-badge">{{ state.typography[k].toFixed(2) }}rem</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Columna derecha: selectores de fuente -->
+              <div class="typo-save-right">
+                <div class="save-field">
+                  <label>Fuente de Titulos</label>
+                  <select v-model="selectedHeadingFontId" class="save-input">
+                    <option value="">Sin cambiar</option>
+                    <option v-for="f in fontsOfRole('heading')" :key="f.id" :value="f.id">
+                      {{ f.name }}{{ f.active ? ' (activa)' : '' }}
+                    </option>
+                  </select>
+                </div>
+                <div class="save-field">
+                  <label>Fuente de Parrafos / UI</label>
+                  <select v-model="selectedBodyFontId" class="save-input">
+                    <option value="">Sin cambiar</option>
+                    <option v-for="f in fontsOfRole('body')" :key="f.id" :value="f.id">
+                      {{ f.name }}{{ f.active ? ' (activa)' : '' }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="save-dialog-actions">
+              <button class="btn btn-secondary" @click="showSaveTypoDialog = false">Cancelar</button>
+              <button class="btn btn-primary" @click="saveTypoConfig">Guardar configuracion</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
+    <!-- Confirmacion eliminar configuracion de tipografia -->
+    <ConfirmDialog
+      :show="showDeleteTypoConfirm"
+      title="Eliminar configuracion de tipografia"
+      :message="`Deseas eliminar la configuracion &quot;${deletingTypoConfig?.name}&quot;?`"
+      confirm-label="Eliminar"
+      :danger="true"
+      @confirm="confirmDeleteTypo"
+      @cancel="showDeleteTypoConfirm = false"
     />
   </div>
 </template>
@@ -483,8 +742,25 @@ const dtOptions = {
 .palettes-table tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-card)); }
 .row-active { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-card)) !important; }
 
-.swatches { display: flex; gap: 4px; flex-wrap: wrap; }
-.swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.swatches { display: flex; gap: 4px; flex-wrap: nowrap; }
+.swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 1px 4px rgba(0,0,0,0.12); flex-shrink: 0; }
+
+/* Tabla de tipografia */
+.typo-cell { font-size: 0.78rem; font-family: 'Courier New', monospace; color: var(--color-primary); font-weight: 600; }
+.inline-edit-row { display: flex; align-items: center; gap: 0.4rem; }
+.inline-name-row { display: flex; align-items: center; gap: 0.4rem; }
+.inline-input {
+  padding: 4px 8px; border: 2px solid var(--color-primary);
+  border-radius: var(--radius-sm); background: var(--color-bg-page);
+  color: var(--color-text-primary); font-size: 0.85rem; font-family: inherit;
+  outline: none; width: 160px;
+}
+
+/* Vista previa de valores en dialogo de tipografia */
+.typo-preview-save { display: flex; gap: 0.6rem; padding: 0.5rem 0; flex-wrap: wrap; }
+.typo-val-item { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.typo-val-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-secondary); letter-spacing: 0.5px; }
+.typo-val-badge { font-size: 0.78rem; font-weight: 700; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); padding: 2px 10px; border-radius: 20px; font-family: 'Courier New', monospace; }
 
 .palette-name { font-weight: 600; }
 .badge-preset { margin-left: 0.4rem; font-size: 0.68rem; font-weight: 600; color: var(--color-text-secondary); background: rgba(128,128,128,0.1); padding: 1px 7px; border-radius: 20px; }
@@ -553,6 +829,18 @@ const dtOptions = {
   box-shadow: 0 24px 60px rgba(0,0,0,0.25);
   display: flex; flex-direction: column; gap: 1rem;
 }
+/* Variante mas ancha para el dialogo de tipografia con 2 columnas */
+.save-dialog--typo { max-width: 680px; }
+/* Grid de 2 columnas: izquierda (nombre + valores), derecha (fuentes) */
+.typo-save-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+.typo-save-left, .typo-save-right { display: flex; flex-direction: column; gap: 0.8rem; }
+/* Fila compacta de valores rem */
+.typo-vals-row { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.4rem 0; }
+
 .save-dialog h3 { font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); margin: 0; }
 .save-dialog-desc { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0; line-height: 1.5; }
 .save-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }

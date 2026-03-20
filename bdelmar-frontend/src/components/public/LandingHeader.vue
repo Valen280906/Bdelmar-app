@@ -71,9 +71,10 @@ function goToRegister() {
 
 <style scoped>
 .landing-header {
-  background: rgba(255, 255, 255, 0.95);
+  /* Usa el color de card de la paleta con alta transparencia para el efecto de cristal */
+  background: color-mix(in srgb, var(--color-bg-card, #ffffff) 92%, transparent);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(128,128,128,0.1);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -104,7 +105,7 @@ function goToRegister() {
   gap: 2rem;
 }
 .nav-link {
-  color: #475569;
+  color: var(--color-text-primary, #475569);
   font-size: 0.95rem;
   font-weight: 600;
   text-decoration: none;
@@ -123,7 +124,7 @@ function goToRegister() {
 .btn-login {
   background: transparent;
   border: none;
-  color: #475569;
+  color: var(--color-text-primary, #475569);
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -152,7 +153,7 @@ function goToRegister() {
 .hamburger {
   display: none;
   background: none; border: none; cursor: pointer;
-  color: #475569;
+  color: var(--color-text-primary, #475569);
   padding: 6px;
 }
 
@@ -160,8 +161,8 @@ function goToRegister() {
 .mobile-nav {
   display: none;
   flex-direction: column;
-  background: white;
-  border-top: 1px solid rgba(0,0,0,0.05);
+  background: var(--color-bg-card, white);
+  border-top: 1px solid rgba(128,128,128,0.08);
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease;
@@ -169,9 +170,9 @@ function goToRegister() {
 .mobile-nav.open { max-height: 400px; }
 .mobile-nav-link {
   padding: 1rem 1.5rem;
-  color: #475569;
+  color: var(--color-text-primary, #475569);
   font-weight: 600;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(128,128,128,0.06);
   text-decoration: none;
 }
 .mobile-auth {
