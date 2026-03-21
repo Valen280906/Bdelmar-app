@@ -8,6 +8,9 @@ CREATE DATABASE IF NOT EXISTS bdelmar
 
 USE bdelmar;
 
+-- Desactivar modo seguro temporalmente
+SET @OLD_SQL_SAFE_UPDATES=@@SQL_SAFE_UPDATES, SQL_SAFE_UPDATES=0;
+
 
 -- Tabla de configuración de tema
 
@@ -68,6 +71,23 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Tabla de combos independientes
+CREATE TABLE IF NOT EXISTS combos (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    unit        VARCHAR(50)  NOT NULL,
+    price       DECIMAL(10,2) NOT NULL
+);
+
+-- Tabla pivote: Relaciona Productos con Combos (Max 3 sugerido por lógica frontend)
+CREATE TABLE IF NOT EXISTS product_combos (
+    product_id  INT NOT NULL,
+    combo_id    INT NOT NULL,
+    PRIMARY KEY (product_id, combo_id),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (combo_id) REFERENCES combos(id) ON DELETE CASCADE
+);
+
 -- Semilla de productos (Insertar solo si está vacía)
 INSERT INTO products (name, description, category, badge, image, basePrice)
 SELECT * FROM (
@@ -84,3 +104,18 @@ SELECT * FROM (
   SELECT 'Cazón', 'Para las tradicionales empanadas orientales.', 'Preparados', 'Temporada', 'Mojito de Cazon', 7.50
 ) AS tmp
 WHERE NOT EXISTS (SELECT 1 FROM products LIMIT 1);
+
+-- Semilla de Combos (Solo si está vacía)
+INSERT INTO combos (name, unit, price)
+SELECT 'Combo Primaveral', '10 Kilos', 50.00
+WHERE NOT EXISTS (SELECT 1 FROM combos LIMIT 1);
+
+-- Vincular combo primaveral al producto Curbina (ID 1 asumiendo que es el primero creado)
+INSERT IGNORE INTO product_combos (product_id, combo_id)
+SELECT p.id, c.id
+FROM products p
+JOIN combos c ON c.name = 'Combo Primaveral'
+WHERE p.name = 'Curbina';
+
+-- Restaurar modo seguro
+SET SQL_SAFE_UPDATES=@OLD_SQL_SAFE_UPDATES;

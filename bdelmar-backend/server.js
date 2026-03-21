@@ -354,11 +354,52 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   res.json({ success: true, imageUrl })
 })
 
+// GET /api/combos → Lista de combos
+app.get('/api/combos', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM combos ORDER BY id ASC')
+    res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error('GET /api/combos error:', err.message)
+    res.status(500).json({ success: false, error: 'Error obteniendo combos' })
+  }
+})
+
+// POST /api/combos → Crear combo
+app.post('/api/combos', async (req, res) => {
+  const { name, unit, price } = req.body
+  if (!name || !unit || price == null) return res.status(400).json({ success: false, error: 'Datos incompletos' })
+
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO combos (name, unit, price) VALUES (?, ?, ?)',
+      [name, unit, price]
+    )
+    res.json({ success: true, id: result.insertId })
+  } catch (err) {
+    console.error('POST /api/combos error:', err.message)
+    res.status(500).json({ success: false, error: 'Error creando combo' })
+  }
+})
+
 // GET /api/products → Lista de productos
 app.get('/api/products', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM products ORDER BY id ASC')
-    res.json({ success: true, data: rows })
+    const [products] = await pool.query('SELECT * FROM products ORDER BY id ASC')
+    const [relations] = await pool.query(`
+      SELECT pc.product_id, c.id, c.name, c.unit, c.price 
+      FROM product_combos pc
+      JOIN combos c ON pc.combo_id = c.id
+    `)
+    
+    const productsWithCombos = products.map(p => {
+      p.combos = relations.filter(r => r.product_id === p.id).map(r => ({
+        id: r.id, name: r.name, unit: r.unit, price: r.price
+      }))
+      return p
+    })
+
+    res.json({ success: true, data: productsWithCombos })
   } catch (err) {
     console.error('GET /api/products error:', err.message)
     res.status(500).json({ success: false, error: 'Error obteniendo productos' })
@@ -367,7 +408,7 @@ app.get('/api/products', async (req, res) => {
 
 // POST /api/products → Crear un producto
 app.post('/api/products', async (req, res) => {
-  const { name, description, category, badge, image, basePrice } = req.body
+  const { name, description, category, badge, image, basePrice, selectedCombos } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
 
   try {
@@ -375,7 +416,14 @@ app.post('/api/products', async (req, res) => {
       'INSERT INTO products (name, description, category, badge, image, basePrice) VALUES (?, ?, ?, ?, ?, ?)',
       [name, description, category || '', badge || '', image || '', basePrice || 0]
     )
-    res.json({ success: true, message: 'Producto creado exitosamente', id: result.insertId })
+    const newId = result.insertId
+    
+    if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
+      const values = selectedCombos.slice(0, 3).map(cid => [newId, cid])
+      await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
+    }
+
+    res.json({ success: true, message: 'Producto creado exitosamente', id: newId })
   } catch (err) {
     console.error('POST /api/products error:', err.message)
     res.status(500).json({ success: false, error: 'Error creando producto' })
@@ -385,7 +433,7 @@ app.post('/api/products', async (req, res) => {
 // PUT /api/products/:id → Actualizar producto
 app.put('/api/products/:id', async (req, res) => {
   const { id } = req.params
-  const { name, description, category, badge, image, basePrice } = req.body
+  const { name, description, category, badge, image, basePrice, selectedCombos } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
 
   try {
@@ -393,6 +441,13 @@ app.put('/api/products/:id', async (req, res) => {
       'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, updated_at = NOW() WHERE id = ?',
       [name, description, category, badge, image, basePrice, id]
     )
+    
+    await pool.query('DELETE FROM product_combos WHERE product_id = ?', [id])
+    if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
+      const values = selectedCombos.slice(0, 3).map(cid => [id, cid])
+      await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
+    }
+
     res.json({ success: true, message: 'Producto actualizado' })
   } catch (err) {
     console.error('PUT /api/products error:', err.message)

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 /**
  * Propiedades del componente listas para la integracion
@@ -15,7 +15,8 @@ const props = defineProps({
       badge: 'Fresco',
       description: 'Producto de alta calidad extraído bajo estrictos estándares... ',
       image: '/placeholder-seafood.png',
-      basePrice: 0
+      basePrice: 0,
+      combos: []
     })
   },
   isExpanded: {
@@ -64,7 +65,21 @@ const toggleShareMenu = () => {
 }
 
 // Variables para enlaces genericos de compartir
-const currentUrl = computed(() => window.location.href)
+const currentUrl = computed(() => {
+  const url = new URL(window.location.href)
+  // Manejo de queries tanto para modo History como modo Hash en Vue
+  if (url.hash && url.hash.includes('?')) {
+    const [path, query] = url.hash.split('?')
+    const params = new URLSearchParams(query)
+    params.set('product', props.product.id)
+    url.hash = `${path}?${params.toString()}`
+  } else if (url.hash) {
+    url.hash = `${url.hash}?product=${props.product.id}`
+  } else {
+    url.searchParams.set('product', props.product.id)
+  }
+  return url.toString()
+})
 const shareMessage = computed(() => `Echa un vistazo a este producto: ${props.product.name}`)
 
 /**
@@ -84,6 +99,26 @@ const shareTelegram = () => {
   window.open(url, '_blank', 'noopener,noreferrer')
   showShareMenu.value = false
 }
+
+onMounted(() => {
+  if (!props.isExpanded) {
+    let params = null
+    if (window.location.hash.includes('?')) {
+      // Si el router de Vue está en modo Hash (ej. #/productos?product=12)
+      params = new URLSearchParams(window.location.hash.split('?')[1])
+    } else {
+      // Si está en modo History (ej. /productos?product=12)
+      params = new URLSearchParams(window.location.search)
+    }
+    
+    if (params.get('product') === String(props.product.id)) {
+      // Retardo para asegurar de que el DOM está listo antes de lanzar el modal
+      setTimeout(() => {
+        showCardModal.value = true
+      }, 150)
+    }
+  }
+})
 </script>
 
 <template>
@@ -171,24 +206,37 @@ const shareTelegram = () => {
 
       <hr class="separator" />
 
-      <!-- Selector de Cantidad -->
-      <section class="quantity-section" @click.stop>
-        <h3 class="section-title">CANTIDAD</h3>
-        <div class="quantity-controls">
-          <button @click.stop="decrementQuantity" class="qty-btn" :disabled="quantity <= 1">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
-          <span class="qty-display">{{ quantity }}</span>
-          <button @click.stop="incrementQuantity" class="qty-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
-        </div>
-      </section>
+      <!-- Selector de Cantidad y Combo -->
+      <div class="quantity-combo-row">
+        <section class="quantity-section" @click.stop>
+          <h3 class="section-title">CANTIDAD</h3>
+          <div class="quantity-controls">
+            <button @click.stop="decrementQuantity" class="qty-btn" :disabled="quantity <= 1">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <span class="qty-display">{{ quantity }}</span>
+            <button @click.stop="incrementQuantity" class="qty-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <!-- Combos vinculados -->
+        <section v-if="product.combos && product.combos.length > 0" class="combo-section" @click.stop>
+          <h3 class="combo-title">OFERTAS EN COMBO</h3>
+          <div class="combos-list">
+            <div v-for="c in product.combos" :key="c.id" class="combo-pill" title="Aplica a este producto">
+              <span class="combo-name">{{ c.name }}</span>
+              <span class="combo-desc">{{ c.unit }} x <strong>${{ Number(c.price).toFixed(2) }}</strong></span>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <hr class="separator" />
 
@@ -459,7 +507,14 @@ const shareTelegram = () => {
   margin: 0;
 }
 
-/* Selector Cantidad */
+/* Selector Cantidad y Combo */
+.quantity-combo-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .quantity-controls {
   display: flex;
   align-items: center;
@@ -497,6 +552,50 @@ const shareTelegram = () => {
   color: var(--pc-text);
   min-width: 30px;
   text-align: center;
+}
+
+/* Combo Section Layout */
+.combo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.combos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.combo-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--color-accent, #e59524);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.combo-pill {
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--color-accent, #e59524) 10%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-accent, #e59524) 50%, transparent);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.70rem;
+  text-align: right;
+}
+
+.combo-name {
+  font-weight: 800;
+  color: var(--pc-text);
+}
+
+.combo-desc {
+  color: var(--pc-primary);
+  font-weight: 600;
+  margin-top: 1px;
 }
 
 /* Footer (Boton de compra y precio) */

@@ -32,7 +32,8 @@ const fetchProducts = async () => {
         badge: dbProd.badge,
         description: dbProd.description,
         image: getImageUrl(dbProd.image),
-        basePrice: dbProd.basePrice
+        basePrice: dbProd.basePrice,
+        combos: dbProd.combos || []
       }))
     }
   } catch (error) {

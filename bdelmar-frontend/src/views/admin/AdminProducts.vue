@@ -18,9 +18,56 @@ const defaultForm = {
   category: 'Pescados',
   badge: '',
   image: '', // Sin imagen por defecto para mostrar el Drag & Drop vacio
-  basePrice: 0.00
+  basePrice: 0.00,
+  selectedCombos: []
 }
 const form = ref({ ...defaultForm })
+
+// --- Manejo de Combos Independientes ---
+const combosList = ref([])
+const showComboModal = ref(false)
+const comboForm = ref({ name: '', unit: '', price: null })
+
+const fetchCombos = async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/combos')
+    const json = await res.json()
+    if (json.success) combosList.value = json.data
+  } catch (err) {
+    console.error('Error cargando combos:', err)
+  }
+}
+
+const openAddCombo = () => {
+  comboForm.value = { name: '', unit: '', price: null }
+  showComboModal.value = true
+}
+
+const saveCombo = async () => {
+  if (!comboForm.value.name || !comboForm.value.unit || !comboForm.value.price) return
+  try {
+    const res = await fetch('http://localhost:3001/api/combos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(comboForm.value)
+    })
+    const json = await res.json()
+    if (json.success) {
+      await fetchCombos()
+      showComboModal.value = false
+    }
+  } catch (err) {
+    console.error('Error guardando combo:', err)
+  }
+}
+
+const checkComboLimit = () => {
+  if (form.value.selectedCombos && form.value.selectedCombos.length > 3) {
+    alert('Puedes seleccionar un máximo de 3 combos por producto.')
+    form.value.selectedCombos.pop()
+  }
+}
+// ---------------------------------------
 
 // Estado del drag & drop
 const fileInput = ref(null)
@@ -53,7 +100,7 @@ const openAddModal = () => {
 }
 
 const openEditModal = (product) => {
-  form.value = { ...product }
+  form.value = { ...product, selectedCombos: product.combos ? product.combos.map(c => c.id) : [] }
   modalTitle.value = 'Editar Producto'
   isEditing.value = true
   showModal.value = true
@@ -61,6 +108,10 @@ const openEditModal = (product) => {
 
 const saveProduct = async () => {
   if (!form.value.name) return
+  if (form.value.selectedCombos && form.value.selectedCombos.length > 3) {
+    alert('No puedes asociar más de 3 combos a un solo producto.')
+    return
+  }
   isSaving.value = true
 
   const method = isEditing.value ? 'PUT' : 'POST'
@@ -159,6 +210,7 @@ const getImageUrl = (imgName) => {
 
 onMounted(() => {
   fetchProducts()
+  fetchCombos()
 })
 </script>
 
@@ -248,11 +300,11 @@ onMounted(() => {
             <div class="modal-col-left">
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="p-name">Nombre Comercial del Producto *</label>
+                  <label for="p-name">Nombre Comercial del Producto</label>
                   <input type="text" id="p-name" v-model="form.name" required placeholder="Ej. Pargo Rosado" />
                 </div>
                 <div class="form-group flex-1">
-                  <label for="p-price">Precio Base ($) *</label>
+                  <label for="p-price">Precio Base ($)</label>
                   <input type="number" step="0.01" min="0" id="p-price" v-model="form.basePrice" required />
                 </div>
               </div>
@@ -272,9 +324,22 @@ onMounted(() => {
                 </div>
               </div>
 
+              <div class="form-group flex-1">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label for="p-select-combos">Combos Disponibles (Selec. de 1 a 3)</label>
+                  <button type="button" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" @click="openAddCombo">+ Nuevo Combo</button>
+                </div>
+                <select multiple id="p-select-combos" v-model="form.selectedCombos" style="height: 90px;" @change="checkComboLimit">
+                  <option v-for="c in combosList" :key="c.id" :value="c.id">
+                    {{ c.name }} - {{ c.unit }} (${{ Number(c.price).toFixed(2) }})
+                  </option>
+                </select>
+                <small class="text-muted" style="margin-top: -0.2rem">Usa Ctrl o Shift para seleccionar/deseleccionar múltiples (máximo 3).</small>
+              </div>
+
               <div class="form-group">
                 <label for="p-desc">Descripción Técnica y Detalles</label>
-                <textarea id="p-desc" v-model="form.description" rows="4" placeholder="Ingresa características de procedencia, sabor, o usos culinarios..."></textarea>
+                <textarea id="p-desc" v-model="form.description" rows="2" placeholder="Ingresa características de procedencia, sabor, o usos culinarios..."></textarea>
               </div>
             </div>
 
@@ -318,6 +383,43 @@ onMounted(() => {
             <button type="submit" class="btn-primary" :disabled="isSaving">
               {{ isSaving ? 'Guardando...' : 'Guardar Producto' }}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Formulario Nuevo Combo -->
+    <div class="modal-overlay" v-if="showComboModal" @click.self="showComboModal = false" style="z-index: 1050;">
+      <div class="modal-content shadow-card" style="max-width: 500px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Añadir Nuevo Combo</h3>
+          <button class="modal-close" @click="showComboModal = false">×</button>
+        </div>
+        
+        <form @submit.prevent="saveCombo" class="modal-body">
+          <div class="modal-layout-grid" style="gap: 1rem;">
+            
+            <div class="form-group">
+              <label for="c-name">Nombre del Combo</label>
+              <input type="text" id="c-name" v-model="comboForm.name" required placeholder="Ej. Combo Familiar" />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="c-unit">Unidad (expresado en Kilos)</label>
+                <input type="text" id="c-unit" v-model="comboForm.unit" required placeholder="Ej. 5 Kilos" />
+              </div>
+              <div class="form-group flex-1">
+                <label for="c-price">Precio ($)</label>
+                <input type="number" step="0.01" min="0" id="c-price" v-model="comboForm.price" required placeholder="Ej. 25.00" />
+              </div>
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="showComboModal = false">Cancelar</button>
+            <button type="submit" class="btn-primary">Añadir Combo</button>
           </div>
         </form>
       </div>
@@ -434,18 +536,18 @@ onMounted(() => {
 }
 .modal-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 1.5rem 2rem; border-bottom: 1px solid rgba(128,128,128,0.1);
+  padding: 1rem 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.1);
 }
-.modal-title { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); }
-.modal-close { background: none; border: none; font-size: 1.75rem; line-height: 1; cursor: pointer; color: var(--color-text-secondary); }
+.modal-title { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); }
+.modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--color-text-secondary); }
 .modal-close:hover { color: var(--color-primary); }
 
-.modal-body { padding: 2rem; display: flex; flex-direction: column; }
-.modal-layout-grid { display: flex; flex-direction: column; gap: 1.5rem; }
-.form-row { display: flex; gap: 1.25rem; flex-wrap: wrap; }
-.flex-1 { flex: 1; min-width: 200px; }
-.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
-.form-group label { font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); }
+.modal-body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; }
+.modal-layout-grid { display: flex; flex-direction: column; gap: 1rem; }
+.form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.flex-1 { flex: 1; min-width: 180px; }
+.form-group { display: flex; flex-direction: column; gap: 0.25rem; }
+.form-group label { font-size: 0.8rem; font-weight: 600; color: var(--color-text-secondary); }
 
 /* Grid Responsive para Modal Desktop */
 @media (min-width: 768px) {
@@ -478,8 +580,8 @@ onMounted(() => {
 }
 
 input[type="text"], input[type="number"], select, textarea {
-  width: 100%; padding: 0.75rem; border: 1px solid rgba(128,128,128,0.2);
-  border-radius: 6px; font-family: inherit; font-size: 0.95rem; background: var(--color-bg-card);
+  width: 100%; padding: 0.6rem; border: 1px solid rgba(128,128,128,0.2);
+  border-radius: 6px; font-family: inherit; font-size: 0.9rem; background: var(--color-bg-card);
   color: var(--color-text-primary); outline: none; transition: border-color 0.2s;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--color-primary); }
@@ -542,7 +644,7 @@ textarea { resize: vertical; }
 .hidden-input { display: none !important; }
 
 .modal-footer {
-  display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;
-  padding-top: 1.5rem; border-top: 1px solid rgba(128,128,128,0.1);
+  display: flex; justify-content: flex-end; gap: 1rem; margin-top: 0.5rem;
+  padding-top: 1rem; border-top: 1px solid rgba(128,128,128,0.1);
 }
 </style>
