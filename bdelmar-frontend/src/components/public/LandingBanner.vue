@@ -86,7 +86,7 @@ function goToRegister() {
   z-index: 1;
   max-width: 900px;
   text-align: center;
-  color: white;
+  color: var(--color-text-primary, white);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -102,7 +102,8 @@ function goToRegister() {
   letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 2rem;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary, white) 40%, transparent);
+  color: var(--color-text-primary, #fff);
 }
 
 .title {
@@ -111,15 +112,17 @@ function goToRegister() {
   line-height: 1.1;
   margin-bottom: 1.5rem;
   text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  color: var(--color-text-primary, #fff);
 }
 
 .subtitle {
   font-size: clamp(1.1rem, 2vw, 1.4rem);
   font-weight: 400;
-  color: rgba(255,255,255,0.9);
+  color: color-mix(in srgb, var(--color-text-primary, #fff) 90%, transparent);
   max-width: 700px;
   margin-bottom: 3rem;
   line-height: 1.6;
+  text-align: center;
 }
 
 .actions {
@@ -143,9 +146,9 @@ function goToRegister() {
   box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 .btn-secondary {
-  background: rgba(255,255,255,0.1);
-  color: white;
-  border: 2px solid white;
+  background: color-mix(in srgb, var(--color-text-primary, white) 10%, transparent);
+  color: var(--color-text-primary, white);
+  border: 2px solid var(--color-text-primary, white);
   padding: 1rem 2.5rem;
   border-radius: 50px;
   font-size: 1.1rem;
@@ -156,7 +159,7 @@ function goToRegister() {
   transition: background 0.2s;
 }
 .btn-secondary:hover {
-  background: rgba(255,255,255,0.2);
+  background: color-mix(in srgb, var(--color-text-primary, white) 20%, transparent);
 }
 
 .stats {
@@ -176,11 +179,11 @@ function goToRegister() {
 .stat-number {
   font-size: 2rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--color-text-primary, #fff);
 }
 .stat-text {
   font-size: 0.85rem;
-  color: rgba(255,255,255,0.7);
+  color: color-mix(in srgb, var(--color-text-primary, white) 80%, transparent);
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 600;

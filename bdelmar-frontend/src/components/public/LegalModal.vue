@@ -49,49 +49,112 @@ function closeModal() {
       <section class="modal-content-area">
         <div class="scrollable-text">
           <div v-if="isSection('terminos')">
-            <h1>Términos y Condiciones de Uso Comercial</h1>
-            <p><strong>Última actualización:</strong> Marzo 2026</p>
-            <p>Bienvenido al portal comercial de <strong>Distribuidora y Comercializadora B-DEL MAR 3011 C.A.</strong> J500760817. Los presentes Términos y Condiciones regulan el uso de nuestros servicios de abastecimiento, distribución y logística de productos pesqueros y acuícolas.</p>
-            
-            <h2>1. Naturaleza de los Servicios y Operaciones</h2>
-            <p>Nuestra empresa opera bajo un modelo de adquisición directa en zonas costeras (bahías y playas) para su posterior comercialización al mayor y detal. Actuamos como proveedores primarios para revendedores minoristas, cadenas de restaurantes, locales gastronómicos (ventas de empanadas, cevicherías, etc.) y público en general. Al registrarse o transar con B-DEL MAR 3011, el cliente asume conocimiento de nuestro modelo de distribución basado en la pesca diaria y factores climáticos.</p>
+            <h1>Términos y Condiciones de Uso</h1>
+            <p><strong>Última actualización:</strong> Abril 2026</p>
+            <p>
+              Bienvenido al portal digital de <strong>Distribuidora y Comercializadora B-DEL MAR 3011 C.A.</strong>, RIF: J500760817. Los presentes Términos y Condiciones regulan el acceso y uso de nuestro sitio web, plataforma de gestión y servicios comerciales en línea. Al acceder o utilizar cualquier sección de este portal, usted declara haber leído, comprendido y aceptado estas condiciones en su totalidad.
+            </p>
 
-            <h2>2. Condiciones de Venta, Precios y Pedidos</h2>
-            <p>Los precios de nuestros productos marinos están sujetos a la fluctuación del mercado de pesca diaria, costos operativos logísticos de cadena de frío y disponibilidad del recurso. Los pedidos al mayor requieren una confirmación previa de nuestro departamento de ventas para garantizar el volumen solicitado. Nos reservamos el derecho de modificar el tarifario sin previo aviso, aunque siempre honraremos las cotizaciones ya aprobadas y facturadas.</p>
-            
-            <h2>3. Logística de Frío y Responsabilidad de Entrega</h2>
-            <p>Garantizamos la preservación térmica (cadena de frío) de todos los productos del mar desde su extracción/recepción en bahía hasta el punto de entrega acordado con el cliente. Es responsabilidad estricta del cliente o de su personal designado inspeccionar el producto al momento de la recepción. Una vez firmada la nota de entrega o factura, B-DEL MAR 3011 cede la custodia térmica al comprador, declinando cualquier responsabilidad por el posterior deterioro físico, organoléptico o microbiológico derivado de un almacenamiento indebido.</p>
+            <h2>1. Propiedad Intelectual</h2>
+            <p>
+              Todo el contenido presente en este sitio web —incluyendo, de manera enunciativa mas no limitativa, el código fuente, diseño visual, arquitectura del sistema, logotipos, paletas de colores, tipografías personalizadas, iconografía, textos, imágenes y estructura de navegación— constituye propiedad intelectual exclusiva de sus creadores y de <strong>B-DEL MAR 3011 C.A.</strong> Queda expresamente prohibida su reproducción total o parcial, distribución, modificación, ingeniería inversa o uso comercial sin la autorización escrita previa del titular. Cualquier infracción será perseguida conforme a las leyes venezolanas de propiedad intelectual e industrial vigentes.
+            </p>
 
-            <h2>4. Políticas de Reclamos y Devoluciones</h2>
-            <p>Dada la naturaleza altamente perecedera de nuestra mercancía, cualquier reclamo sobre la calidad, peso o estado del pescado y mariscos deberá realizarse en un lapso <strong>no mayor a 12 horas</strong> posteriores a su recepción. El reclamo deberá acompañarse de evidencia fotográfica y física del lote entregado. Bajo ninguna circunstancia se aceptarán devoluciones de mercancía que haya sido procesada, descongelada o manipulada sin las normas de salubridad vigentes.</p>
+            <h2>2. Limitación de Responsabilidad</h2>
+            <p>
+              B-DEL MAR 3011 C.A. no se hace responsable por daños directos, indirectos, incidentales o consecuentes que pudieran derivarse del uso o la imposibilidad de uso de este portal, incluyendo pérdida de datos, interrupciones del servicio o errores de contenido. Los precios, disponibilidad de producto y condiciones comerciales publicadas tienen carácter informativo y están sujetos a confirmación por parte de nuestro equipo de ventas.
+            </p>
+
+            <h2>3. Usos Prohibidos</h2>
+            <p>
+              Está estrictamente prohibido utilizar este sitio para: (a) suplantar la identidad de la empresa o de terceros; (b) introducir virus informáticos o código malicioso; (c) realizar scraping automatizado de precios, catálogos o datos de contacto; (d) publicar contenido ilegal, ofensivo o que viole derechos de terceros; (e) cualquier actividad que contravenga el orden público o las leyes venezolanas vigentes. B-DEL MAR 3011 se reserva el derecho de bloquear accesos que incurran en estas conductas sin previo aviso.
+            </p>
+
+            <h2>4. Jurisdicción Legal Aplicable</h2>
+            <p>
+              El presente acuerdo se rige íntegramente por las leyes de la <strong>República Bolivariana de Venezuela</strong>. Para la resolución de cualquier controversia derivada del uso de este portal o de los servicios que en él se ofrecen, ambas partes se someten expresamente a la jurisdicción de los tribunales competentes con sede en la República Bolivariana de Venezuela, renunciando a cualquier otro fuero que pudiera corresponderles.
+            </p>
+
+            <h2>5. Modificaciones</h2>
+            <p>
+              B-DEL MAR 3011 C.A. se reserva el derecho de actualizar estos Términos y Condiciones en cualquier momento. Las modificaciones entrarán en vigor desde su publicación en este portal. Se recomienda revisarlos periódicamente.
+            </p>
           </div>
 
           <div v-else-if="isSection('privacidad')">
-            <h1>Políticas de Privacidad y Tratamiento de Datos</h1>
-            <p><strong>Distribuidora y Comercializadora B-DEL MAR 3011 C.A.</strong>, comprometida con la seguridad de sus clientes comerciales y particulares, establece la presente política para regular la recolección y tratamiento de la información personal y fiscal.</p>
-            
-            <h2>1. Recolección de Datos</h2>
-            <p>Al registrarse en nuestra plataforma o solicitar nuestros servicios al mayor, recopilaremos datos identificativos tales como: nombres de la empresa o persona natural, RIF o documento de identidad, números de contacto, direcciones de despacho y direcciones de correo electrónico. Toda información es suministrada de manera voluntaria por el usuario.</p>
-            
-            <h2>2. Uso de la Información Comercial</h2>
-            <p>Los datos recabados serán empleados única y exclusivamente con fines operativos, de facturación y logísticos. Esto abarca: la gestión integral de sus pedidos, comunicaciones sobre despachos, notificaciones de disponibilidad de pesca fresca, envíos de cotizaciones, y recuperación de credenciales de acceso al portal. No realizamos perfilamiento masivo ni comercialización de su base de datos.</p>
-            
-            <h2>3. Resguardo y Confidencialidad a Terceros</h2>
-            <p>B-DEL MAR 3011 protege su información corporativa. En ningún caso venderemos, cederemos o alquilaremos sus listas de contactos, historial de compras ni proyecciones de volumen a terceros competidores ni entidades externas, sin la intervención de un mandato u orden legal emitida por una autoridad competente.</p>
+            <h1>Políticas de Privacidad y Protección de Datos</h1>
+            <p><strong>Última actualización:</strong> Abril 2026</p>
+            <p>
+              En <strong>Distribuidora y Comercializadora B-DEL MAR 3011 C.A.</strong> valoramos y respetamos su privacidad. La presente Política describe de forma transparente qué información personal recopilamos, cómo la utilizamos, cómo la protegemos y cuáles son sus derechos como titular de dichos datos, en cumplimiento de las disposiciones legales vigentes en la República Bolivariana de Venezuela.
+            </p>
+
+            <h2>1. Datos que Recopilamos</h2>
+            <p>
+              A través de nuestro formulario de registro y contacto, recopilamos datos personales tales como: <strong>nombre completo o razón social, dirección de correo electrónico, número de teléfono de contacto y, cuando aplique, RIF o documento de identidad</strong>. Esta información es suministrada voluntariamente por usted al crear una cuenta o al comunicarse con nuestro equipo comercial.
+            </p>
+
+            <h2>2. Finalidad del Tratamiento</h2>
+            <p>
+              Los datos recopilados son utilizados exclusivamente para los siguientes fines: (a) gestionar su registro y acceso al portal; (b) responder sus consultas comerciales y enviarle cotizaciones o presupuestos; (c) notificarle sobre disponibilidad de productos, despachos y novedades relevantes para su negocio; (d) cumplir con las obligaciones legales y fiscales correspondientes. No utilizamos sus datos para fines publicitarios de terceros ni realizamos cesión comercial de la información.
+            </p>
+
+            <h2>3. Confidencialidad y Seguridad</h2>
+            <p>
+              B-DEL MAR 3011 C.A. implementa medidas técnicas y organizativas razonables para proteger su información personal contra accesos no autorizados, pérdida, alteración o divulgación indebida. Su información nunca será vendida, arrendada ni compartida con terceros, salvo requerimiento de autoridad competente conforme a la ley venezolana.
+            </p>
+
+            <h2>4. Derechos del Titular de los Datos</h2>
+            <p>
+              Usted tiene el derecho de solicitar en cualquier momento: (a) el acceso a los datos personales que mantenemos sobre usted; (b) la corrección de datos incorrectos o desactualizados; (c) la eliminación definitiva de su información de nuestros registros; (d) la revocación del consentimiento otorgado. Para ejercer estos derechos, puede escribirnos directamente al correo <strong>bdelmar69@gmail.com</strong> indicando su solicitud.
+            </p>
+
+            <h2>5. Retención de Datos</h2>
+            <p>
+              Sus datos serán conservados durante el tiempo que mantenga una relación comercial activa con B-DEL MAR 3011 C.A., o hasta que solicite su eliminación, salvo obligación legal de conservación por un período mayor.
+            </p>
           </div>
 
           <div v-else-if="isSection('cookies')">
-            <h1>Políticas de Cookies y Tecnologías Rastreables</h1>
-            <p>Con el objetivo de proveer una experiencia de usuario rápida, segura y fluida en nuestro portal de compras y catálogo, B-DEL MAR 3011 hace uso de tecnologías de almacenamiento local en su dispositivo.</p>
-            
-            <h2>1. Uso de Cookies Estrictamente Necesarias</h2>
-            <p>Las "Cookies" son pequeños ficheros de datos que se ubican en su navegador web. En nuestro sitio web, utilizamos exclusívamente cookies estructurales y técnicas que permiten sostener la sesión activa del usuario comercial tras el inicio de sesión. Esto previene que usted deba reescribir sus credenciales por cada producto que consulte en nuestro catálogo privado.</p>
-            
-            <h2>2. Almacenamiento Local (Local Storage)</h2>
-            <p>Como complemento a las cookies de sesión, empleamos la tecnología Local Storage del navegador para almacenar preferencias del usuario, como el "Rol" en el sistema (Administrador o Revendedor/Usuario) y las preferencias visuales (Modo claro/oscuro). Dichos datos no son rastreadores de publicidad, sino elementos vitales para redibujar la interfaz correctamente.</p>
-            
-            <h2>3. Consentimiento y Desactivación</h2>
-            <p>Al seguir navegando por el sitio y autenticándose mediante sus credenciales, usted acepta tácitamente la colocación de estas herramientas técnicas en su navegador. Usted puede en cualquier momento bloquear el almacenamiento local directamente desde los ajustes de seguridad de su explorador; sin embargo, advertimos que esto inutilizará el acceso al catálogo protegido de clientes.</p>
+            <h1>Políticas de Cookies y Almacenamiento Local</h1>
+            <p><strong>Última actualización:</strong> Abril 2026</p>
+            <p>
+              Con el objetivo de garantizar una experiencia de usuario fluida, segura y personalizada en nuestro portal, <strong>B-DEL MAR 3011 C.A.</strong> utiliza tecnologías de almacenamiento en su navegador web. A continuación le explicamos qué son, para qué las usamos y cómo puede gestionarlas.
+            </p>
+
+            <h2>1. ¿Qué son las Cookies?</h2>
+            <p>
+              Las cookies son pequeños archivos de texto que un sitio web almacena en su navegador cuando lo visita. Permiten que el sitio recuerde información sobre su visita, como sus preferencias o su sesión activa, para que no tenga que configurarlas de nuevo la próxima vez. Son completamente inofensivas y no contienen virus ni malware.
+            </p>
+
+            <h2>2. Tipos de Cookies que Utilizamos</h2>
+            <p>
+              <strong>Cookies técnicas o esenciales:</strong> Son imprescindibles para el correcto funcionamiento del portal. Permiten mantener su sesión activa tras el inicio de sesión, recordar su rol en el sistema (Administrador o Usuario) y navegar de forma segura entre las secciones privadas del sitio. Sin estas cookies, determinadas funciones del portal no estarán disponibles.
+            </p>
+            <p>
+              <strong>Almacenamiento Local (Local Storage):</strong> Utilizamos el Local Storage del navegador para guardar preferencias visuales como el modo de color (claro, oscuro o daltonismo) y las configuraciones de diseño del sitio personalizadas por el administrador. Estos datos permanecen únicamente en su dispositivo y no son transmitidos a servidores externos.
+            </p>
+            <p>
+              <strong>Cookies de análisis:</strong> En caso de que en el futuro implementemos herramientas de análisis de tráfico (como estadísticas de visitas), estas serán anonimizadas y usadas exclusivamente para mejorar la experiencia del usuario. Le informaremos con la debida anticipación.
+            </p>
+
+            <h2>3. Consentimiento</h2>
+            <p>
+              Al navegar por nuestro sitio web y autenticarse con sus credenciales, usted consiente el uso de las cookies técnicas descritas, las cuales son necesarias para el correcto funcionamiento del portal.
+            </p>
+
+            <h2>4. Cómo Desactivarlas</h2>
+            <p>
+              Usted puede configurar su navegador para bloquear o eliminar las cookies y el almacenamiento local en cualquier momento. A continuación le indicamos cómo acceder a esa configuración en los navegadores más comunes:
+            </p>
+            <p>
+              • <strong>Google Chrome:</strong> Configuración → Privacidad y seguridad → Cookies y otros datos de sitios.<br/>
+              • <strong>Mozilla Firefox:</strong> Opciones → Privacidad y seguridad → Cookies y datos del sitio.<br/>
+              • <strong>Microsoft Edge:</strong> Configuración → Cookies y permisos de sitio.<br/>
+              • <strong>Safari:</strong> Preferencias → Privacidad → Gestionar datos del sitio web.
+            </p>
+            <p>
+              <strong>Nota:</strong> Si deshabilita las cookies técnicas, es posible que algunas funcionalidades esenciales del portal —como el inicio de sesión y la visualización de su catálogo privado— dejen de funcionar correctamente.
+            </p>
           </div>
         </div>
         

@@ -106,7 +106,8 @@ function goToRegister() {
 }
 .nav-link {
   color: var(--color-text-primary, #475569);
-  font-size: 0.95rem;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-p, 0.95rem);
   font-weight: 600;
   text-decoration: none;
   transition: color 0.2s;
@@ -135,7 +136,7 @@ function goToRegister() {
 
 .btn-register {
   background: var(--color-primary, #1a91db);
-  color: white;
+  color: var(--color-text-on-primary);
   border: none;
   padding: 0.7rem 1.5rem;
   border-radius: 50px;
@@ -171,6 +172,8 @@ function goToRegister() {
 .mobile-nav-link {
   padding: 1rem 1.5rem;
   color: var(--color-text-primary, #475569);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-p, 1rem);
   font-weight: 600;
   border-bottom: 1px solid rgba(128,128,128,0.06);
   text-decoration: none;
@@ -195,7 +198,7 @@ function goToRegister() {
 }
 .btn-register-mobile {
   background: var(--color-primary, #1a91db);
-  color: white;
+  color: var(--color-text-on-primary);
   border: none;
 }
 

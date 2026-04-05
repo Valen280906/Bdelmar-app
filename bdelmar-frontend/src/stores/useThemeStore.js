@@ -63,8 +63,8 @@ export const useThemeStore = defineStore('theme', () => {
 
     paletas: [
       { ...PALETA_PRINCIPAL, id: 1, active: true },
-      { ...PALETA_OSCURA, id: 2, active: false },
-      { ...PALETA_DALTONICO, id: 3, active: false },
+      { ...PALETA_OSCURA, id: 2, active: true },
+      { ...PALETA_DALTONICO, id: 3, active: true },
     ],
 
     // Colores actualmente aplicados en el DOM
@@ -125,7 +125,8 @@ export const useThemeStore = defineStore('theme', () => {
 
     // Inyecta el stylesheet de Google Fonts para fuentes externas si aun no fue cargado
     ;[headingFont, bodyFont].forEach(f => {
-      if (f && !f.isDefault) {
+      if (f && !f.isDefault && !f.dataUrl) {
+        // Solo carga Google Fonts para fuentes externas SIN dataUrl (es decir, sin ser locales)
         const linkId = `gfont-${f.name.replace(/\s+/g, '-').toLowerCase()}`
         if (!document.getElementById(linkId)) {
           const link = document.createElement('link')
@@ -133,6 +134,15 @@ export const useThemeStore = defineStore('theme', () => {
           link.rel = 'stylesheet'
           link.href = `https://fonts.googleapis.com/css2?family=${f.name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
           document.head.appendChild(link)
+        }
+      }
+      // Si tiene dataUrl (fuente local), restauramos el FontFace en el documento si no está registrada
+      if (f && f.dataUrl) {
+        const cleanName = f.name.replace(/['"]/g, '')
+        const isMounted = [...document.fonts].some(ff => ff.family.replace(/['"]/g, '') === cleanName)
+        if (!isMounted) {
+          const fontFace = new FontFace(cleanName, `url(${f.dataUrl})`)
+          fontFace.load().then(loaded => document.fonts.add(loaded)).catch(err => console.error('Error cargando fuente local:', err))
         }
       }
     })
@@ -237,7 +247,8 @@ export const useThemeStore = defineStore('theme', () => {
 
   function setTypography(key, value) {
     state.typography[key] = value
-    applyToDom()
+    // No llamamos a applyToDom() aqui, para que funja solo de 'borrador' en StylePreview
+    // hasta que el usuario decida 'Activar' una configuracion.
   }
 
   // Guarda los valores actuales de tipografia como una configuracion nombrada.
@@ -298,13 +309,16 @@ export const useThemeStore = defineStore('theme', () => {
   function setMode(mode) {
     // Aplica un modo completo de paleta sin afectar los ajustes de las paletas guardadas
     state.mode = mode
-    if (mode === 'oscuro') {
-      state.currentColors = { ...PALETA_OSCURA.colors }
-    } else if (mode === 'daltonico') {
-      state.currentColors = { ...PALETA_DALTONICO.colors }
+    
+    // Buscar la paleta activa para este modo específico
+    const activaEnModo = state.paletas.find(p => p.type === mode && p.active)
+    
+    if (activaEnModo) {
+      state.currentColors = { ...activaEnModo.colors }
     } else {
-      const activa = state.paletas.find(p => p.active)
-      if (activa) state.currentColors = { ...activa.colors }
+      // Fallback si no hay activa (no debería pasar)
+      if (mode === 'oscuro') state.currentColors = { ...PALETA_OSCURA.colors }
+      else if (mode === 'daltonico') state.currentColors = { ...PALETA_DALTONICO.colors }
       else state.currentColors = { ...PALETA_PRINCIPAL.colors }
     }
 
@@ -317,13 +331,24 @@ export const useThemeStore = defineStore('theme', () => {
   // ----- Gestion de paletas -----
 
   function activarPaleta(id) {
-    state.paletas.forEach(p => p.active = false)
-    const activa = state.paletas.find(p => p.id === id)
-    if (activa) {
-      activa.active = true
-      state.currentColors = { ...activa.colors }
-      state.mode = activa.type === 'oscuro' ? 'oscuro' : activa.type === 'daltonico' ? 'daltonico' : 'claro'
+    const activaNueva = state.paletas.find(p => p.id === id)
+    if (!activaNueva) return
+
+    // Desactiva solo las paletas del mismo tipo
+    state.paletas.filter(p => p.type === activaNueva.type).forEach(p => p.active = false)
+    
+    activaNueva.active = true
+    
+    // Si la paleta activada es del modo en el que estamos actualmente, aplicamos los colores al instante
+    const mappedMode = activaNueva.type === 'oscuro' ? 'oscuro' : activaNueva.type === 'daltonico' ? 'daltonico' : 'claro'
+    if (state.mode === mappedMode) {
+      state.currentColors = { ...activaNueva.colors }
+    } else {
+      // Opcional: Cambiamos también el modo de la aplicación al de la nueva paleta
+      state.mode = mappedMode
+      state.currentColors = { ...activaNueva.colors }
     }
+
     applyToDom()
     persistToStorage()
   }
@@ -382,20 +407,21 @@ export const useThemeStore = defineStore('theme', () => {
 
   // ----- Gestion de fuentes -----
   function addFont(fontData) {
+    const cleanOrigName = fontData.name.replace(/['"]/g, '')
     const font = {
       id: `f${state.nextFontId++}`,
-      name: fontData.name,
+      name: cleanOrigName,
       role: fontData.role || 'body',
       isDefault: false,
       active: false,
-      cssFamily: fontData.cssFamily || `'${fontData.name}', sans-serif`,
+      cssFamily: fontData.cssFamily || `'${cleanOrigName}', sans-serif`,
       dataUrl: fontData.dataUrl || null,
     }
     if (fontData.dataUrl) {
-      const fontFace = new FontFace(fontData.name, `url(${fontData.dataUrl})`)
+      const fontFace = new FontFace(cleanOrigName, `url(${fontData.dataUrl})`)
       fontFace.load().then(loaded => {
         document.fonts.add(loaded)
-      })
+      }).catch(err => console.error('Error in addFont local load:', err))
     }
     state.fonts.push(font)
     persistToStorage()
@@ -434,8 +460,7 @@ export const useThemeStore = defineStore('theme', () => {
         nextTypoId: state.nextTypoId,
         mode: state.mode,
         nextId: state.nextId,
-        // Los dataUrl de fuentes locales se omiten porque pueden superar el limite de localStorage
-        fonts: state.fonts.filter(f => !f.dataUrl),
+        fonts: state.fonts,  // incluye fuentes locales (dataUrl) para que persistan al recargar
         nextFontId: state.nextFontId,
       }))
     } catch (e) { /* Error silencioso en navegadores con modo privado estricto */ }

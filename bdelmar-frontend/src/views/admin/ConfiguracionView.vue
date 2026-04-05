@@ -12,7 +12,6 @@ DataTable.use(DataTablesCore)
 import PaletteEditor from '../../components/admin/PaletteEditor.vue'
 import TypographyEditor from '../../components/admin/TypographyEditor.vue'
 import StylePreview from '../../components/admin/StylePreview.vue'
-import FontManager from '../../components/admin/FontManager.vue'
 import ConfirmDialog from '../../components/shared/ConfirmDialog.vue'
 
 const themeStore = useThemeStore()
@@ -139,8 +138,44 @@ function copyHex(hex) {
 
 const showSaveTypoDialog    = ref(false)
 const newTypoName           = ref('')
-const selectedHeadingFontId = ref('')
-const selectedBodyFontId    = ref('')
+const typoHeadingSource = ref('google') 
+const typoBodySource = ref('google')
+const typoHeadingGoogle = ref('Merriweather')
+const typoBodyGoogle = ref('Inter')
+const typoHeadingFile = ref(null)
+const typoBodyFile = ref(null)
+const typoHeadingFileName = ref('')
+const typoBodyFileName = ref('')
+
+const POPULAR_FONTS = [
+  'Roboto', 'Montserrat', 'Lato', 'Poppins', 'Oswald',
+  'Playfair Display', 'Lora', 'Raleway', 'Ubuntu', 'Nunito', 'Merriweather', 'Inter'
+]
+
+function handleTypoFileChange(event, role) {
+  const file = event.target.files[0]
+  if (!file) return
+  if (role === 'heading') {
+    typoHeadingFile.value = file
+    if (!typoHeadingFileName.value) typoHeadingFileName.value = file.name.replace(/\.(ttf|woff2?|otf)$/i, '').replace(/[-_]/g, ' ')
+  } else {
+    typoBodyFile.value = file
+    if (!typoBodyFileName.value) typoBodyFileName.value = file.name.replace(/\.(ttf|woff2?|otf)$/i, '').replace(/[-_]/g, ' ')
+  }
+}
+
+function loadGoogleFontPreview(nm) {
+  if (!nm) return
+  const clean = nm.trim()
+  const linkId = `gfont-preview-${clean.replace(/\s+/g, '-').toLowerCase()}`
+  if (!document.getElementById(linkId)) {
+    const link = document.createElement('link')
+    link.id = linkId
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${clean.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
+    document.head.appendChild(link)
+  }
+}
 const showDeleteTypoConfirm = ref(false)
 const deletingTypoConfig    = ref(null)
 const editingTypoId         = ref(null)
@@ -151,23 +186,69 @@ function fontsOfRole(role) {
   return state.fonts.filter(f => f.role === role)
 }
 
+function getFontName(id) {
+  if (!id) return 'Heredada o predeterminada'
+  const f = state.fonts.find(x => x.id === id)
+  return f ? f.name : 'Desconocida'
+}
+
 function openSaveTypoDialog() {
   // Precarga las fuentes actualmente activas como valor inicial del selector
   const hf = state.fonts.find(f => f.role === 'heading' && f.active)
   const bf = state.fonts.find(f => f.role === 'body'    && f.active)
-  selectedHeadingFontId.value = hf ? hf.id : ''
-  selectedBodyFontId.value    = bf ? bf.id : ''
+  typoHeadingSource.value = 'google'
+  typoBodySource.value = 'google'
+  typoHeadingGoogle.value = hf ? hf.name : 'Merriweather'
+  typoBodyGoogle.value = bf ? bf.name : 'Inter'
+  typoHeadingFile.value = null
+  typoBodyFile.value = null
+  typoHeadingFileName.value = ''
+  typoBodyFileName.value = ''
   showSaveTypoDialog.value = true
 }
 
-function saveTypoConfig() {
+async function processFontUpload(role, source, googleName, localFile, localName) {
+  if (source === 'google' && googleName) {
+    const nm = googleName.trim()
+    const linkId = `gfont-${nm.replace(/\s+/g, '-').toLowerCase()}`
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement('link')
+      link.id = linkId
+      link.rel = 'stylesheet'
+      link.href = `https://fonts.googleapis.com/css2?family=${nm.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`
+      document.head.appendChild(link)
+    }
+    return themeStore.addFont({ name: nm, role, cssFamily: `'${nm}', ${role === 'heading' ? 'serif' : 'sans-serif'}` })
+  }
+
+  if (source === 'local' && localFile && localName) {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        // Forzamos el MIME type a font/truetype porque Windows/Chrome a veces lo lee como application/octet-stream y falla la carga.
+        const base64Data = e.target.result.split(',')[1]
+        const safeDataUrl = `data:font/truetype;charset=utf-8;base64,${base64Data}`
+        
+        const id = themeStore.addFont({
+          name: localName.trim(), role, dataUrl: safeDataUrl, 
+          cssFamily: `'${localName.trim()}', ${role === 'heading' ? 'serif' : 'sans-serif'}`
+        })
+        resolve(id)
+      }
+      reader.readAsDataURL(localFile)
+    })
+  }
+  return null
+}
+
+async function saveTypoConfig() {
   const nm = newTypoName.value.trim() || `Config ${state.nextTypoId}`
-  themeStore.guardarConfigTypo(
-    nm,
-    selectedHeadingFontId.value || null,
-    selectedBodyFontId.value    || null
-  )
-  success(`Configuracion "${nm}" guardada`)
+
+  const headId = await processFontUpload('heading', typoHeadingSource.value, typoHeadingGoogle.value, typoHeadingFile.value, typoHeadingFileName.value)
+  const bodyId = await processFontUpload('body', typoBodySource.value, typoBodyGoogle.value, typoBodyFile.value, typoBodyFileName.value)
+
+  themeStore.guardarConfigTypo(nm, headId || null, bodyId || null)
+  success(`Tipografía guardada (Fuentes asociadas correctamente)`)
   newTypoName.value = ''
   showSaveTypoDialog.value = false
 }
@@ -270,7 +351,6 @@ const dtOptions = {
           { key:'paletas',    label:'Paletas', icon:'color-palette' },
           { key:'editor',     label:'Editor de Color', icon:'color-fill' },
           { key:'tipografia', label:'Tipografía', icon:'text' },
-          { key:'fuentes',    label:'Fuentes', icon:'document-text' },
         ]"
         :key="tab.key"
         class="config-tab"
@@ -435,6 +515,8 @@ const dtOptions = {
               <th>H2</th>
               <th>H3</th>
               <th>P</th>
+              <th>Fuente Títulos</th>
+              <th>Fuente Párrafos</th>
               <th>Activa</th>
               <th>Acciones</th>
             </tr>
@@ -462,10 +544,12 @@ const dtOptions = {
                   <span v-if="config.isDefault" class="badge-preset">Predeterminada</span>
                 </div>
               </td>
-              <td class="typo-cell">{{ config.values.h1.toFixed(1) }}rem</td>
-              <td class="typo-cell">{{ config.values.h2.toFixed(1) }}rem</td>
-              <td class="typo-cell">{{ config.values.h3.toFixed(1) }}rem</td>
-              <td class="typo-cell">{{ config.values.p.toFixed(2) }}rem</td>
+              <td class="typo-cell">{{ config.values.h1.toFixed(1) }}x</td>
+              <td class="typo-cell">{{ config.values.h2.toFixed(1) }}x</td>
+              <td class="typo-cell">{{ config.values.h3.toFixed(1) }}x</td>
+              <td class="typo-cell">{{ config.values.p.toFixed(2) }}x</td>
+              <td class="typo-cell">{{ getFontName(config.headingFontId) }}</td>
+              <td class="typo-cell">{{ getFontName(config.bodyFontId) }}</td>
               <td>
                 <span v-if="config.active" class="check-active">Activa</span>
                 <span v-else class="text-muted">—</span>
@@ -510,7 +594,7 @@ const dtOptions = {
       </div>
 
       <!-- Editor de sliders + vista previa -->
-      <div class="editor-layout">
+      <div class="editor-layout" style="margin-bottom: 2rem;">
         <div class="editors-panel">
           <TypographyEditor />
         </div>
@@ -521,11 +605,6 @@ const dtOptions = {
           <StylePreview />
         </div>
       </div>
-    </div>
-
-    <!-- === TAB: FUENTES === -->
-    <div v-if="activeTab === 'fuentes'" class="tab-content">
-      <FontManager />
     </div>
 
     <!-- ===== MODALES Y DIÁLOGOS ===== -->
@@ -553,7 +632,7 @@ const dtOptions = {
             </div>
             <!-- Preview swatches de los colores a guardar (draft) -->
             <div class="save-preview">
-              <div v-for="(val, key) in (state.draftColors || state.currentColors)" :key="key" class="swatch-lg" :style="{ background: val }" :title="key" />
+              <div v-for="key in COLOR_KEYS" :key="key" class="swatch-lg" :style="{ background: (state.draftColors || state.currentColors)[key] }" :title="key" />
             </div>
             <div class="save-dialog-actions">
               <button class="btn btn-secondary" @click="showSaveDialog = false">Cancelar</button>
@@ -598,30 +677,67 @@ const dtOptions = {
                 <div class="typo-vals-row">
                   <div class="typo-val-item" v-for="k in ['h1','h2','h3','p']" :key="k">
                     <span class="typo-val-label">{{ k.toUpperCase() }}</span>
-                    <span class="typo-val-badge">{{ state.typography[k].toFixed(2) }}rem</span>
+                    <span class="typo-val-badge">{{ state.typography[k].toFixed(2) }}x</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Columna derecha: selectores de fuente -->
+              <!-- Columna derecha: Gestor de fuentes inyectado -->
               <div class="typo-save-right">
-                <div class="save-field">
-                  <label>Fuente de Titulos</label>
-                  <select v-model="selectedHeadingFontId" class="save-input">
-                    <option value="">Sin cambiar</option>
-                    <option v-for="f in fontsOfRole('heading')" :key="f.id" :value="f.id">
-                      {{ f.name }}{{ f.active ? ' (activa)' : '' }}
-                    </option>
+                <!-- FUENTE DE TITULOS -->
+                <div class="save-field source-block">
+                  <label class="source-title">Fuente de Títulos</label>
+                  <select v-model="typoHeadingSource" class="save-input source-select" style="margin-bottom: 0.5rem">
+                    <option value="google">Descargar desde Google Fonts</option>
+                    <option value="local">Subir mi propio archivo de la carpeta</option>
                   </select>
+                  
+                  <div class="source-body" v-if="typoHeadingSource === 'google'">
+                    <select class="save-input" @change="e => { if(e.target.value) { typoHeadingGoogle = e.target.value; loadGoogleFontPreview(e.target.value); } }" style="margin-bottom:0.3rem">
+                      <option value="">Sugerencias comunes...</option>
+                      <option v-for="pf in POPULAR_FONTS" :key="pf" :value="pf">{{ pf }}</option>
+                    </select>
+                    <input type="text" v-model="typoHeadingGoogle" @change="e => loadGoogleFontPreview(e.target.value)" placeholder="O escribe el nombre exacto..." class="save-input" />
+                    <!-- PREVIEW -->
+                    <div v-if="typoHeadingGoogle" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 6px;">
+                      <span style="font-size:0.65rem; color:var(--color-text-secondary)">Vista Previa (Títulos):</span>
+                      <div :style="{ fontFamily: `'${typoHeadingGoogle}'` }" style="font-size:1.1rem; line-height: 1.2;">Aa — El Sabor del Mar</div>
+                    </div>
+                  </div>
+                  
+                  <div class="source-body" v-if="typoHeadingSource === 'local'">
+                    <input type="file" accept=".ttf,.woff,.woff2,.otf" @change="e => handleTypoFileChange(e, 'heading')" class="file-uploader" />
+                    <input type="text" v-model="typoHeadingFileName" placeholder="Ej: MiFuentePersonalizada" class="save-input" style="margin-top:0.3rem" />
+                  </div>
                 </div>
-                <div class="save-field">
-                  <label>Fuente de Parrafos / UI</label>
-                  <select v-model="selectedBodyFontId" class="save-input">
-                    <option value="">Sin cambiar</option>
-                    <option v-for="f in fontsOfRole('body')" :key="f.id" :value="f.id">
-                      {{ f.name }}{{ f.active ? ' (activa)' : '' }}
-                    </option>
+
+                <hr style="border:0; border-top:1px solid rgba(128,128,128,0.1); margin: 1rem 0;" />
+
+                <!-- FUENTE DE PARRAFOS -->
+                <div class="save-field source-block">
+                  <label class="source-title">Fuente de Párrafos / UI</label>
+                  <select v-model="typoBodySource" class="save-input source-select" style="margin-bottom: 0.5rem">
+                    <option value="google">Descargar desde Google Fonts</option>
+                    <option value="local">Subir mi propio archivo de la carpeta</option>
                   </select>
+                  
+                  <div class="source-body" v-if="typoBodySource === 'google'">
+                    <select class="save-input" @change="e => { if(e.target.value) { typoBodyGoogle = e.target.value; loadGoogleFontPreview(e.target.value); } }" style="margin-bottom:0.3rem">
+                      <option value="">Sugerencias comunes...</option>
+                      <option v-for="pf in POPULAR_FONTS" :key="pf" :value="pf">{{ pf }}</option>
+                    </select>
+                    <input type="text" v-model="typoBodyGoogle" @change="e => loadGoogleFontPreview(e.target.value)" placeholder="O escribe el nombre exacto..." class="save-input" />
+                    <!-- PREVIEW -->
+                    <div v-if="typoBodyGoogle" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 6px;">
+                      <span style="font-size:0.65rem; color:var(--color-text-secondary)">Vista Previa (Párrafo):</span>
+                      <div :style="{ fontFamily: `'${typoBodyGoogle}'` }" style="font-size:0.9rem;">La felicidad se respira a la orilla del mar...</div>
+                    </div>
+                  </div>
+                  
+                  <div class="source-body" v-if="typoBodySource === 'local'">
+                    <input type="file" accept=".ttf,.woff,.woff2,.otf" @change="e => handleTypoFileChange(e, 'body')" class="file-uploader" />
+                    <input type="text" v-model="typoBodyFileName" placeholder="Ej: MiFuenteParrafos" class="save-input" style="margin-top:0.3rem" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -673,7 +789,7 @@ const dtOptions = {
   font-weight: 700; margin: 0;
   font-family: var(--font-family-heading, 'Merriweather', serif);
 }
-.config-header-title p { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0.2rem 0 0; }
+.config-header-title p { font-size: calc(var(--font-size-p, 1rem) * 0.85); color: var(--color-text-secondary); margin: 0.2rem 0 0; }
 
 /* Mode toggles */
 .mode-toggles { display: flex; gap: 0.4rem; background: var(--color-bg-page); border-radius: var(--radius-pill); padding: 4px; }
@@ -681,7 +797,7 @@ const dtOptions = {
   padding: 0.45rem 1rem;
   border: none; border-radius: var(--radius-pill);
   background: none; color: var(--color-text-secondary);
-  font-size: 0.82rem; font-family: inherit; font-weight: 500;
+  font-size: calc(var(--font-size-p, 1rem) * 0.82); font-family: inherit; font-weight: 500;
   cursor: pointer; transition: background 0.2s, color 0.2s; white-space: nowrap;
 }
 .mode-btn.active { background: var(--color-primary); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
@@ -701,7 +817,7 @@ const dtOptions = {
   padding: 0.55rem 1.2rem;
   border: none; border-radius: var(--radius-sm);
   background: none; color: var(--color-text-secondary);
-  font-size: 0.85rem; font-family: inherit; font-weight: 500;
+  font-size: calc(var(--font-size-p, 1rem) * 0.85); font-family: var(--font-family-body, inherit); font-weight: 500;
   cursor: pointer; transition: all 0.2s; white-space: nowrap;
 }
 .config-tab:hover { background: var(--color-bg-page); color: var(--color-text-primary); }
@@ -714,7 +830,7 @@ const dtOptions = {
 .palettes-toolbar {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem;
 }
-.section-title { font-size: 1rem; font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.section-title { font-size: var(--font-size-p, 1rem); font-weight: 700; color: var(--color-text-primary); margin: 0; }
 
 .table-wrapper {
   background: var(--color-bg-card);

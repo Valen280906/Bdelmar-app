@@ -88,21 +88,22 @@
   font-size: 2.5rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 
 .divider {
   width: 60px;
   height: 4px;
   background: var(--color-primary, #1a91db);
-  margin-bottom: 2rem;
+  margin: 0 auto 2rem;
   border-radius: 2px;
 }
 
 .description {
   color: var(--color-text-secondary, #64748b);
-  font-size: 1.1rem;
   line-height: 1.7;
   margin-bottom: 1.5rem;
+  text-align: justify;
 }
 
 .values-grid {
@@ -116,12 +117,13 @@
   color: var(--color-text-primary, #1e293b);
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 
 .value-item p {
   color: var(--color-text-secondary, #64748b);
-  font-size: 0.9rem;
   line-height: 1.4;
+  text-align: center;
 }
 
 .value-icon {
@@ -173,7 +175,7 @@
 }
 
 .image-text {
-  color: white;
+  color: var(--color-text-primary, white);
   font-size: 2.2rem;
   font-weight: 800;
   text-align: center;

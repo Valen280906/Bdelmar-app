@@ -96,7 +96,7 @@ const slides = [
 .slide-badge {
   display: inline-block;
   background: var(--color-accent);
-  color: white;
+  color: var(--color-text-primary, white);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 2px;
@@ -108,14 +108,14 @@ const slides = [
 .slide-title {
   font-size: clamp(1.8rem, 4vw, 3rem);
   font-weight: 800;
-  color: white;
+  color: var(--color-text-primary, white);
   line-height: 1.1;
   margin-bottom: 0.6rem;
   text-shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 .slide-subtitle {
   font-size: 1rem;
-  color: rgba(255,255,255,0.85);
+  color: color-mix(in srgb, var(--color-text-primary, white) 85%, transparent);
   margin-bottom: 1.5rem;
 }
 .slide-cta {
@@ -123,7 +123,7 @@ const slides = [
   align-items: center;
   gap: 0.5rem;
   background: var(--color-accent);
-  color: white;
+  color: var(--color-text-primary, white);
   padding: 0.85rem 2rem;
   border-radius: var(--radius-pill);
   font-weight: 700;
@@ -134,8 +134,8 @@ const slides = [
   transition: transform 0.15s, box-shadow 0.15s;
   box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
-.slide-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); color: white; }
-.slide-cta svg { fill: white; }
+.slide-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); color: var(--color-text-primary, white); }
+.slide-cta svg { fill: var(--color-text-primary, white); }
 
 /* Vue3 Carousel Customization */
 :deep(.carousel__prev), :deep(.carousel__next) {

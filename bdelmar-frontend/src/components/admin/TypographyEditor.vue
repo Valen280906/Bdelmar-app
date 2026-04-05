@@ -11,34 +11,44 @@ const state = themeStore.state
 const { error } = useToast()
 
 const typographyFields = [
-  { key: 'h1',  label: 'Título Principal (H1)', min: 1.6, max: 3.8, step: 0.1, unit: 'rem' },
-  { key: 'h2',  label: 'Subtítulo (H2)',         min: 1.1, max: 2.6, step: 0.1, unit: 'rem' },
-  { key: 'h3',  label: 'Subtítulo (H3)',         min: 0.9, max: 2.0, step: 0.1, unit: 'rem' },
-  { key: 'p',   label: 'Párrafo / Botones / Menú', min: 0.75, max: 1.4, step: 0.05, unit: 'rem', note: 'Afecta también el texto de botones y menú' },
+  { key: 'h1',  label: 'Título Principal (H1)', min: 1.0, max: 3.5, step: 0.1, unit: 'x' },
+  { key: 'h2',  label: 'Subtítulo (H2)',         min: 0.8, max: 2.8, step: 0.1, unit: 'x' },
+  { key: 'h3',  label: 'Subtítulo (H3)',         min: 0.6, max: 2.2, step: 0.1, unit: 'x' },
+  { key: 'p',   label: 'Párrafo / Botones / Menú', min: 0.3, max: 1.6, step: 0.1, unit: 'x', note: 'Afecta también el texto de botones y menú' },
 ]
 
 function onSliderChange(key, event) {
   const newVal = parseFloat(event.target.value)
   const current = state.typography
 
-  // Validación de Jerarquía: h1 > h2 > h3 > p
+  // Validación de Jerarquía estricta: h1 > h2 > h3 > p
   if (key === 'h1' && newVal <= current.h2) {
-    error('El título principal (H1) debe ser mayor que el subtítulo (H2)')
+    error('Orden incorrecto: El Título (H1) no puede ser más pequeño que el Subtítulo (H2)')
     event.target.value = current.h1
     return
   }
-  if (key === 'h2' && (newVal >= current.h1 || newVal <= current.h3)) {
-    error('El H2 debe ser menor que el H1 y mayor que el H3')
+  if (key === 'h2' && newVal >= current.h1) {
+    error('Orden incorrecto: El Subtítulo (H2) no puede superar el tamaño del Título (H1)')
     event.target.value = current.h2
     return
   }
-  if (key === 'h3' && (newVal >= current.h2 || newVal <= current.p)) {
-    error('El H3 debe ser menor que el H2 y mayor que el Párrafo')
+  if (key === 'h2' && newVal <= current.h3) {
+    error('Orden incorrecto: El Subtítulo (H2) no puede ser más pequeño que el H3')
+    event.target.value = current.h2
+    return
+  }
+  if (key === 'h3' && newVal >= current.h2) {
+    error('Orden incorrecto: El H3 no puede superar el tamaño del Subtítulo (H2)')
+    event.target.value = current.h3
+    return
+  }
+  if (key === 'h3' && newVal <= current.p) {
+    error('Orden incorrecto: El H3 no puede ser más pequeño que el texto de Párrafo')
     event.target.value = current.h3
     return
   }
   if (key === 'p' && newVal >= current.h3) {
-    error('El párrafo debe ser menor que el subtítulo H3')
+    error('Orden incorrecto: El texto de Párrafo no puede superar el tamaño del H3')
     event.target.value = current.p
     return
   }
@@ -66,7 +76,7 @@ function getLevel(field, val) {
       <div v-for="field in typographyFields" :key="field.key" class="typo-item">
         <div class="typo-label-row">
           <label :for="`typo-${field.key}`">{{ field.label }}</label>
-          <div class="typo-value-badge">Tamaño {{ getLevel(field, state.typography[field.key]) }}</div>
+          <div class="typo-value-badge">{{ state.typography[field.key].toFixed(1) }}x</div>
         </div>
         <div v-if="field.note" class="typo-note">{{ field.note }}</div>
         <div class="slider-wrapper">

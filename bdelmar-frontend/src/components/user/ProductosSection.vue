@@ -30,6 +30,7 @@ const fetchProducts = async () => {
         name: dbProd.name,
         category: dbProd.category || 'Pescados',
         badge: dbProd.badge,
+        barcode: dbProd.barcode,
         description: dbProd.description,
         image: getImageUrl(dbProd.image),
         basePrice: dbProd.basePrice,

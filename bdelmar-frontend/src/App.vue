@@ -35,6 +35,7 @@ onMounted(() => {
 
 body {
   font-family: var(--font-family-body);
+  font-size: var(--font-size-p, 1rem);
   background: var(--color-bg-page, #f0f2f5);
   color: var(--color-text-primary, #121212);
   line-height: 1.6;
@@ -46,9 +47,12 @@ h1, h2, h3 {
   text-align: left;
 }
 
+h1 { font-size: var(--font-size-h1, 2.5rem); text-align: center; }
+h2 { font-size: var(--font-size-h2, 2.0rem); }
+h3 { font-size: var(--font-size-h3, 1.75rem); }
+
 /* Prevent text justification globally */
 p, span, li, td, th { text-align: left; }
-h1 { text-align: center; }
 
 /* Scrollbar sutil */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

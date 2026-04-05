@@ -107,8 +107,9 @@ const navLinks = [
 .nav-link {
   padding: 0.5rem 1rem;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-menu);
-  font-weight: 500;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-p, 0.95rem);
+  font-weight: 600;
   text-decoration: none;
   border-radius: var(--radius-sm);
   transition: color 0.15s, background 0.15s;
@@ -156,8 +157,9 @@ const navLinks = [
 .mobile-nav-link {
   padding: 1rem 1.5rem;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-menu);
-  font-weight: 500;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-p, 1rem);
+  font-weight: 600;
   border-bottom: 1px solid rgba(128,128,128,0.06);
   text-decoration: none;
   transition: color 0.15s, background 0.15s;

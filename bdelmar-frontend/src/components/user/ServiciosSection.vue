@@ -147,7 +147,6 @@ const services = [
   margin-bottom: 0.5rem;
 }
 .servicio-desc {
-  font-size: 0.88rem;
   color: var(--color-text-secondary);
   line-height: 1.6;
 }

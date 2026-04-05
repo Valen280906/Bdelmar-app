@@ -193,7 +193,9 @@ onMounted(() => {
           <h2 class="title">{{ product.name }}</h2>
           <span v-if="product.badge" class="status-badge">{{ product.badge }}</span>
         </div>
-        <p class="subtitle">{{ product.category }}</p>
+        <div style="margin-top: 0.1rem;">
+           <p class="subtitle">{{ product.category }}</p>
+        </div>
       </header>
 
       <hr class="separator" />
@@ -202,6 +204,9 @@ onMounted(() => {
       <section class="info-section">
         <h3 class="section-title">PRODUCT INFO</h3>
         <p class="section-text">{{ product.description }}</p>
+        <div v-if="product.barcode" style="margin-top: 1.5rem; text-align: center;">
+          <p class="product-barcode">*{{ product.barcode }}*</p>
+        </div>
       </section>
 
       <hr class="separator" />
@@ -211,13 +216,13 @@ onMounted(() => {
         <section class="quantity-section" @click.stop>
           <h3 class="section-title">CANTIDAD</h3>
           <div class="quantity-controls">
-            <button @click.stop="decrementQuantity" class="qty-btn" :disabled="quantity <= 1">
+            <button @click.stop="decrementQuantity" class="qty-btn" :disabled="quantity <= 1 || product.badge === 'Agotado'">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
-            <span class="qty-display">{{ quantity }}</span>
-            <button @click.stop="incrementQuantity" class="qty-btn">
+            <span class="qty-display" :style="{ opacity: product.badge === 'Agotado' ? 0.5 : 1 }">{{ quantity }}</span>
+            <button @click.stop="incrementQuantity" class="qty-btn" :disabled="product.badge === 'Agotado'">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -242,13 +247,17 @@ onMounted(() => {
 
       <!-- Accion Final y Precio -->
       <footer class="details-footer" @click.stop>
-        <button class="add-to-cart-btn" @click.stop>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="add-to-cart-btn" :disabled="product.badge === 'Agotado'" :class="{ 'is-agotado': product.badge === 'Agotado' }" @click.stop>
+          <svg v-if="product.badge !== 'Agotado'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="9" cy="21" r="1"></circle>
             <circle cx="20" cy="21" r="1"></circle>
             <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
           </svg>
-          <span class="btn-text">AGREGAR</span>
+          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+          <span class="btn-text">{{ product.badge === 'Agotado' ? 'AGOTADO' : 'AGREGAR' }}</span>
         </button>
         <div class="price-display">
           <span class="currency">$</span>{{ totalPrice }}
@@ -276,6 +285,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
+
 /*
   Variables globales asumidas de la arquitectura CSS de la aplicacion.
   En caso de estar definidos globalmente, se integraran naturalmente.
@@ -288,8 +299,8 @@ onMounted(() => {
   --pc-text-light: #777777;
   --pc-bg: var(--color-bg-card, #ffffff);
   --pc-border: rgba(0, 0, 0, 0.08);
-  --pc-gradient-start: color-mix(in srgb, var(--pc-primary) 90%, white);
-  --pc-gradient-end: var(--pc-primary);
+  --pc-gradient-start: color-mix(in srgb, var(--color-accent, #ffb74d) 20%, white);
+  --pc-gradient-end: color-mix(in srgb, var(--color-accent, #f57c00) 60%, white);
 
   display: flex;
   flex-direction: column;
@@ -483,6 +494,15 @@ onMounted(() => {
   font-weight: 500;
 }
 
+.product-barcode {
+  font-family: 'Libre Barcode 39', cursive;
+  font-size: 3.5rem;
+  line-height: 0.5;
+  margin: 0;
+  color: var(--pc-text);
+  opacity: 0.9;
+}
+
 /* Componentes comunes info */
 .section-title {
   font-size: 0.75rem;
@@ -494,9 +514,10 @@ onMounted(() => {
 
 .separator {
   border: none;
+  border-top: 1px dashed rgba(0,0,0,0.15);
   height: 1px;
-  background-color: var(--pc-border);
-  margin: 0;
+  background-color: transparent;
+  margin: 0.5rem 0;
 }
 
 /* Descripcion */
@@ -510,9 +531,9 @@ onMounted(() => {
 /* Selector Cantidad y Combo */
 .quantity-combo-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
 }
 
 .quantity-controls {
@@ -558,13 +579,16 @@ onMounted(() => {
 .combo-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
 }
 
 .combos-list {
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: stretch;
+  gap: 0.5rem;
+  max-width: 100%;
 }
 
 .combo-title {
@@ -579,17 +603,24 @@ onMounted(() => {
 .combo-pill {
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--color-accent, #e59524) 10%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--color-accent, #e59524) 50%, transparent);
-  border-radius: 6px;
-  padding: 0.25rem 0.5rem;
+  background: color-mix(in srgb, var(--color-accent, #e59524) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #e59524) 25%, transparent);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
   font-size: 0.70rem;
-  text-align: right;
+  text-align: center;
+  flex: 1 1 calc(50% - 0.5rem);
+  min-width: 110px;
+  transition: background 0.2s;
+}
+.combo-pill:hover {
+  background: color-mix(in srgb, var(--color-accent, #e59524) 15%, transparent);
 }
 
 .combo-name {
   font-weight: 800;
   color: var(--pc-text);
+  font-size: 0.75rem;
 }
 
 .combo-desc {
@@ -630,6 +661,14 @@ onMounted(() => {
   background: var(--pc-primary-hover);
   transform: translateY(-2px);
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.add-to-cart-btn.is-agotado {
+  background: rgba(128,128,128,0.4);
+  color: rgba(255,255,255,0.8);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .price-display {

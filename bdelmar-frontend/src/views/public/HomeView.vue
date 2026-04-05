@@ -1,9 +1,23 @@
 <script setup>
+import { ref } from 'vue'
 import LandingHeader from '@/components/public/LandingHeader.vue'
 import LandingBanner from '@/components/public/LandingBanner.vue'
 import LandingNosotros from '@/components/public/LandingNosotros.vue'
 import LandingServices from '@/components/public/LandingServices.vue'
 import LandingFooter from '@/components/public/LandingFooter.vue'
+import LegalModal from '@/components/public/LegalModal.vue'
+
+const legalOpen = ref(false)
+const legalSection = ref('terminos')
+
+function openLegal(section) {
+  legalSection.value = section
+  legalOpen.value = true
+}
+
+function closeLegal() {
+  legalOpen.value = false
+}
 </script>
 
 <template>
@@ -16,7 +30,13 @@ import LandingFooter from '@/components/public/LandingFooter.vue'
       <LandingServices />
     </main>
 
-    <LandingFooter />
+    <LandingFooter @openLegal="openLegal" />
+
+    <LegalModal
+      :isOpen="legalOpen"
+      :initialSection="legalSection"
+      @close="closeLegal"
+    />
   </div>
 </template>
 
@@ -33,3 +53,4 @@ main {
   flex: 1;
 }
 </style>
+

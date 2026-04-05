@@ -25,8 +25,8 @@
   --font-size-h2:   1.6rem;
   --font-size-h3:   1.2rem;
   --font-size-p:    1rem;
-  --font-size-btn:  1rem;
-  --font-size-menu: 1rem;
+  --font-size-btn:  calc(var(--font-size-p, 1rem) * 0.95);
+  --font-size-menu: var(--font-size-p, 1rem);
 
   --font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
   --radius-sm: 8px;

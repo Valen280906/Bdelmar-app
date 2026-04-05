@@ -80,6 +80,7 @@ const services = [
   color: var(--color-text-secondary, #64748b);
   font-size: 1.1rem;
   line-height: 1.6;
+  text-align: center;
 }
 
 .services-grid {
@@ -120,10 +121,12 @@ const services = [
   color: var(--color-text-primary, #1e293b);
   font-weight: 700;
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .service-desc {
   color: var(--color-text-secondary, #64748b);
   line-height: 1.6;
+  text-align: justify;
 }
 </style>

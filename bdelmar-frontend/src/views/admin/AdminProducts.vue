@@ -10,6 +10,16 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const modalTitle = ref('Añadir Producto')
 
+// Estado para Delete
+const showConfirmModal = ref(false)
+const productToDelete = ref(null)
+
+// Estado para Alertas Generales
+const alertModal = ref({ show: false, title: '', message: '' })
+const showAlert = (title, message) => {
+  alertModal.value = { show: true, title, message }
+}
+
 // Formulario predeterminado
 const defaultForm = {
   id: null,
@@ -17,6 +27,7 @@ const defaultForm = {
   description: '',
   category: 'Pescados',
   badge: '',
+  barcode: '',
   image: '', // Sin imagen por defecto para mostrar el Drag & Drop vacio
   basePrice: 0.00,
   selectedCombos: []
@@ -30,7 +41,8 @@ const comboForm = ref({ name: '', unit: '', price: null })
 
 const fetchCombos = async () => {
   try {
-    const res = await fetch('http://localhost:3001/api/combos')
+    let url = 'http://localhost:3001/api/combos'
+    const res = await fetch(url)
     const json = await res.json()
     if (json.success) combosList.value = json.data
   } catch (err) {
@@ -49,11 +61,13 @@ const saveCombo = async () => {
     const res = await fetch('http://localhost:3001/api/combos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(comboForm.value)
+      body: JSON.stringify({
+        ...comboForm.value
+      })
     })
     const json = await res.json()
     if (json.success) {
-      await fetchCombos()
+      await fetchCombos(form.value.id || null)
       showComboModal.value = false
     }
   } catch (err) {
@@ -62,8 +76,8 @@ const saveCombo = async () => {
 }
 
 const checkComboLimit = () => {
-  if (form.value.selectedCombos && form.value.selectedCombos.length > 3) {
-    alert('Puedes seleccionar un máximo de 3 combos por producto.')
+  if (form.value.selectedCombos && form.value.selectedCombos.length > 2) {
+    showAlert('Límite Alcanzado', 'Puedes seleccionar un máximo de 2 combos por producto para mantener limpia la interfaz del comprador.')
     form.value.selectedCombos.pop()
   }
 }
@@ -75,7 +89,16 @@ const isDragOver = ref(false)
 const uploadLoading = ref(false)
 
 // Opciones de configuración
-const categories = ['Pescados', 'Mariscos', 'Preparados', 'Otros']
+import { computed } from 'vue'
+const defaultCategories = ['Pescados', 'Mariscos', 'Preparados', 'Otros']
+const dynamicCategories = computed(() => {
+  const catSet = new Set(defaultCategories)
+  products.value.forEach(p => {
+    if (p.category && p.category.trim() !== '') catSet.add(p.category.trim())
+  })
+  return Array.from(catSet)
+})
+
 const badges = ['Nuevo', 'Fresco', 'Promoción', 'Temporada', 'Premium', 'Popular', 'Agotado', '']
 
 const fetchProducts = async () => {
@@ -86,17 +109,18 @@ const fetchProducts = async () => {
     if (json.success) products.value = json.data
   } catch (error) {
     console.error('Error crgando productos:', error)
-    alert('No se pudieron cargar los productos. Asegúrate de que el backend esté ejecutándose.')
+    showAlert('Error de Red', 'No se pudieron cargar los productos. Asegúrate de que el servidor de conexión esté activo.')
   } finally {
     isLoading.value = false
   }
 }
 
 const openAddModal = () => {
-  form.value = { ...defaultForm }
+  form.value = { ...defaultForm, selectedCombos: [] }
   modalTitle.value = 'Añadir Nuevo Producto'
   isEditing.value = false
   showModal.value = true
+  fetchCombos()
 }
 
 const openEditModal = (product) => {
@@ -104,12 +128,13 @@ const openEditModal = (product) => {
   modalTitle.value = 'Editar Producto'
   isEditing.value = true
   showModal.value = true
+  fetchCombos()
 }
 
 const saveProduct = async () => {
   if (!form.value.name) return
-  if (form.value.selectedCombos && form.value.selectedCombos.length > 3) {
-    alert('No puedes asociar más de 3 combos a un solo producto.')
+  if (form.value.selectedCombos && form.value.selectedCombos.length > 2) {
+    showAlert('Demasiados Combos', 'No puedes asociar más de 2 combos a un solo producto.')
     return
   }
   isSaving.value = true
@@ -130,23 +155,30 @@ const saveProduct = async () => {
       await fetchProducts()
       showModal.value = false
     } else {
-      alert(json.error)
+      showAlert('Error al Guardar', json.error || 'Información rechazada por el servidor.')
     }
   } catch (error) {
     console.error('Error guardando producto:', error)
-    alert('Hubo un problema de conexión al guardar el producto.')
+    showAlert('Fallo Crítico', 'Hubo un problema de conexión grave al intentar transcribir tu producto al catálogo global.')
   } finally {
     isSaving.value = false
   }
 }
 
-const deleteProduct = async (id) => {
-  if (!confirm('¿Estás seguro de eliminar este producto del catálogo?')) return
+const confirmDelete = (id) => {
+  productToDelete.value = id
+  showConfirmModal.value = true
+}
+
+const deleteProduct = async () => {
+  if (!productToDelete.value) return
   try {
-    const res = await fetch(`http://localhost:3001/api/products/${id}`, { method: 'DELETE' })
+    const res = await fetch(`http://localhost:3001/api/products/${productToDelete.value}`, { method: 'DELETE' })
     const json = await res.json()
     if (json.success) {
       await fetchProducts()
+      showConfirmModal.value = false
+      productToDelete.value = null
     }
   } catch (error) {
     console.error('Error eliminando producto:', error)
@@ -185,11 +217,11 @@ const uploadFile = async (file) => {
     if (json.success) {
       form.value.image = json.imageUrl
     } else {
-      alert(json.error || 'Error subiendo la imagen')
+      showAlert('Error en Imagen', json.error || 'Hubo un error subiendo la imagen procesada.')
     }
   } catch(error) {
     console.error(error)
-    alert('Fallo de conexión al subir la imagen al servidor.')
+    showAlert('Error de Subida', 'Fallo de interconexión subiendo la imagen al servidor remoto.')
   } finally {
     uploadLoading.value = false
   }
@@ -255,6 +287,7 @@ onMounted(() => {
             </td>
             <td class="col-name">
               <strong>{{ product.name }}</strong>
+              <div v-if="product.barcode" class="barcode-visual">*{{ product.barcode }}*</div>
             </td>
             <td>
               <span class="chip-category">{{ product.category }}</span>
@@ -273,7 +306,7 @@ onMounted(() => {
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                 </svg>
               </button>
-              <button class="btn-icon btn-delete" @click="deleteProduct(product.id)" aria-label="Eliminar">
+              <button class="btn-icon btn-delete" @click="confirmDelete(product.id)" aria-label="Eliminar">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -299,9 +332,15 @@ onMounted(() => {
             <!-- Columna Izquierda: Detalles del Producto -->
             <div class="modal-col-left">
               <div class="form-row">
-                <div class="form-group flex-1">
+                <div class="form-group flex-1" style="flex-basis: 100%;">
                   <label for="p-name">Nombre Comercial del Producto</label>
                   <input type="text" id="p-name" v-model="form.name" required placeholder="Ej. Pargo Rosado" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label>Código (SKU) - Autoasignado</label>
+                  <input type="text" :value="form.barcode || 'Sistema genera al guardar...'" disabled style="background: rgba(128,128,128,0.05); color: var(--color-text-secondary); cursor: not-allowed;" />
                 </div>
                 <div class="form-group flex-1">
                   <label for="p-price">Precio Base ($)</label>
@@ -311,10 +350,11 @@ onMounted(() => {
 
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="p-category">Categoría</label>
-                  <select id="p-category" v-model="form.category">
-                    <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-                  </select>
+                  <label for="p-category">Categoría (Selecciona o escribe una nueva)</label>
+                  <input type="text" id="p-category" v-model="form.category" list="cat-list" autocomplete="off" placeholder="Ej. Ahumados..." />
+                  <datalist id="cat-list">
+                    <option v-for="cat in dynamicCategories" :key="cat" :value="cat"></option>
+                  </datalist>
                 </div>
                 <div class="form-group flex-1">
                   <label for="p-badge">Insignia Promocional (Badge)</label>
@@ -326,15 +366,20 @@ onMounted(() => {
 
               <div class="form-group flex-1">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <label for="p-select-combos">Combos Disponibles (Selec. de 1 a 3)</label>
+                  <label>Combos Disponibles (Selec. de 1 a 2)</label>
                   <button type="button" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" @click="openAddCombo">+ Nuevo Combo</button>
                 </div>
-                <select multiple id="p-select-combos" v-model="form.selectedCombos" style="height: 90px;" @change="checkComboLimit">
-                  <option v-for="c in combosList" :key="c.id" :value="c.id">
-                    {{ c.name }} - {{ c.unit }} (${{ Number(c.price).toFixed(2) }})
-                  </option>
-                </select>
-                <small class="text-muted" style="margin-top: -0.2rem">Usa Ctrl o Shift para seleccionar/deseleccionar múltiples (máximo 3).</small>
+                <div class="combo-checkboxes">
+                  <div v-if="combosList.length === 0" class="text-muted" style="padding: 1rem; font-size: 0.85rem; text-align: center;">Aún no hay combos para este producto.</div>
+                  <label v-for="c in combosList" :key="c.id" class="combo-checkbox-item" :class="{'is-selected': form.selectedCombos.includes(c.id)}">
+                    <input type="checkbox" :value="c.id" v-model="form.selectedCombos" @change="checkComboLimit" />
+                    <div class="combo-info">
+                      <span class="combo-n">{{ c.name }}</span>
+                      <span class="combo-u">{{ c.unit }} (${{ Number(c.price).toFixed(2) }})</span>
+                    </div>
+                  </label>
+                </div>
+                <small class="text-muted" style="margin-top: -0.2rem">Únicamente puedes marcar un máximo de 2 combinaciones dinámicas.</small>
               </div>
 
               <div class="form-group">
@@ -424,10 +469,58 @@ onMounted(() => {
         </form>
       </div>
     </div>
+    <!-- Modal de Confirmación Estilizado -->
+    <div class="modal-overlay" v-if="showConfirmModal" @click.self="showConfirmModal = false" style="z-index: 1100;">
+      <div class="modal-content shadow-card confirm-dialog">
+        <div class="modal-header confirm-header">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <h3 class="modal-title text-danger">Eliminar Producto</h3>
+        </div>
+        <div class="modal-body confirm-body">
+          <p>¿Estás seguro de que deseas eliminar este producto permanentemente de tu catálogo?</p>
+          <p class="text-muted small">Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="modal-footer confirm-footer">
+          <button type="button" class="btn-secondary" @click="showConfirmModal = false">Cancelar</button>
+          <button type="button" class="btn-primary btn-danger-action" @click="deleteProduct()">Sí, Eliminar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Alertas Estilizado -->
+    <div class="modal-overlay" v-if="alertModal.show" @click.self="alertModal.show = false" style="z-index: 1200;">
+      <div class="modal-content shadow-card confirm-dialog" style="max-width: 400px; text-align: center;">
+        <div class="modal-header" style="justify-content: center; padding-top: 1.5rem; border-bottom: none;">
+          <div style="background: rgba(229, 149, 36, 0.15); border-radius: 50%; padding: 0.75rem; display: inline-flex;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent, #e59524)" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+        </div>
+        <div class="modal-body confirm-body">
+          <h3 style="margin: 0 0 0.5rem 0; color: var(--color-text-primary); font-size: 1.25rem;">{{ alertModal.title }}</h3>
+          <p style="margin: 0; line-height: 1.5; color: var(--color-text-secondary); font-size: 0.95rem;">
+            {{ alertModal.message }}
+          </p>
+        </div>
+        <div class="modal-footer" style="justify-content: center; border-top: none; padding-bottom: 2rem;">
+          <button type="button" class="btn-primary" @click="alertModal.show = false" style="min-width: 120px;">Entendido</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
+
 .admin-products-view {
   padding: 2.5rem;
   max-width: 1200px;
@@ -482,6 +575,14 @@ onMounted(() => {
 }
 
 .col-name strong { color: var(--color-primary); font-size: 0.95rem; }
+.barcode-visual {
+  font-family: 'Libre Barcode 39', cursive;
+  font-size: 2.8rem;
+  line-height: 0.8;
+  margin-top: 0.5rem;
+  color: var(--color-text-primary);
+  opacity: 0.9;
+}
 .col-price { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
 .text-right { text-align: right; }
 .text-center { text-align: center; }
@@ -579,13 +680,33 @@ onMounted(() => {
   }
 }
 
+/* Forms */
 input[type="text"], input[type="number"], select, textarea {
-  width: 100%; padding: 0.6rem; border: 1px solid rgba(128,128,128,0.2);
-  border-radius: 6px; font-family: inherit; font-size: 0.9rem; background: var(--color-bg-card);
-  color: var(--color-text-primary); outline: none; transition: border-color 0.2s;
+  width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(128,128,128,0.2);
+  border-radius: 8px; background: var(--color-bg-page); color: var(--color-text-primary);
+  font-family: inherit; font-size: 0.95rem; transition: border-color 0.2s, box-shadow 0.2s;
 }
-input:focus, select:focus, textarea:focus { border-color: var(--color-primary); }
-textarea { resize: vertical; }
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Combos Checkboxes */
+.combo-checkboxes {
+  display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto;
+  border: 1px solid rgba(128,128,128,0.2); border-radius: 8px; padding: 0.5rem; background: rgba(128,128,128,0.015);
+}
+.combo-checkbox-item {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem;
+  background: var(--color-bg-card); border: 1px solid rgba(128,128,128,0.1); border-radius: 6px;
+  cursor: pointer; transition: all 0.2s; user-select: none;
+}
+.combo-checkbox-item:hover { border-color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.combo-checkbox-item.is-selected { background: color-mix(in srgb, var(--color-primary) 8%, transparent); border-color: var(--color-primary); }
+.combo-checkbox-item input[type="checkbox"] { flex-shrink: 0; width: 1.15rem; height: 1.15rem; cursor: pointer; accent-color: var(--color-primary); }
+.combo-info { display: flex; flex-direction: column; }
+.combo-n { font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary); }
+.combo-u { font-size: 0.75rem; color: var(--color-text-secondary); }
 
 .dropzone {
   border: 2px dashed rgba(128,128,128,0.3);
@@ -639,7 +760,7 @@ textarea { resize: vertical; }
   border: 1px solid rgba(220,50,50,0.2); border-radius: 20px;
   padding: 0.3rem 0.8rem; font-size: 0.75rem; font-weight: 700; cursor: pointer;
 }
-.btn-remove:hover { background: #fee2e2; }
+.btn-remove:hover { background: #feebeb; }
 .uploading-state { font-weight: 600; color: var(--color-primary); }
 .hidden-input { display: none !important; }
 
@@ -647,4 +768,12 @@ textarea { resize: vertical; }
   display: flex; justify-content: flex-end; gap: 1rem; margin-top: 0.5rem;
   padding-top: 1rem; border-top: 1px solid rgba(128,128,128,0.1);
 }
+.confirm-dialog { max-width: 500px; }
+.confirm-header { border-bottom: none; gap: 0.75rem; justify-content: flex-start; color: #e53935; padding: 1.5rem 2rem 0.5rem 2rem; }
+.confirm-body { padding: 0.5rem 2rem 2rem 2rem; }
+.confirm-body p { margin-top: 0; line-height: 1.5; color: var(--color-text-primary); font-size: 1.05rem; }
+.confirm-footer { border-top: none; padding: 0 2rem 2rem 2rem; gap: 1rem; }
+.text-danger { color: #e53935 !important; }
+.btn-danger-action { background-color: #e53935; }
+.btn-danger-action:hover { background-color: #c62828; }
 </style>

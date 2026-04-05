@@ -356,8 +356,16 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 // GET /api/combos → Lista de combos
 app.get('/api/combos', async (req, res) => {
+  const { product_id } = req.query
   try {
-    const [rows] = await pool.query('SELECT * FROM combos ORDER BY id ASC')
+    let query = 'SELECT * FROM combos WHERE product_id IS NULL '
+    let params = []
+    if (product_id) {
+      query += 'OR product_id = ? '
+      params.push(product_id)
+    }
+    query += 'ORDER BY id ASC'
+    const [rows] = await pool.query(query, params)
     res.json({ success: true, data: rows })
   } catch (err) {
     console.error('GET /api/combos error:', err.message)
@@ -367,13 +375,13 @@ app.get('/api/combos', async (req, res) => {
 
 // POST /api/combos → Crear combo
 app.post('/api/combos', async (req, res) => {
-  const { name, unit, price } = req.body
+  const { name, unit, price, product_id } = req.body
   if (!name || !unit || price == null) return res.status(400).json({ success: false, error: 'Datos incompletos' })
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO combos (name, unit, price) VALUES (?, ?, ?)',
-      [name, unit, price]
+      'INSERT INTO combos (name, unit, price, product_id) VALUES (?, ?, ?, ?)',
+      [name, unit, price, product_id || null]
     )
     res.json({ success: true, id: result.insertId })
   } catch (err) {
@@ -408,19 +416,25 @@ app.get('/api/products', async (req, res) => {
 
 // POST /api/products → Crear un producto
 app.post('/api/products', async (req, res) => {
-  const { name, description, category, badge, image, basePrice, selectedCombos } = req.body
+  const { name, description, category, badge, image, basePrice, selectedCombos, barcode } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
+
+  const finalBarcode = 'BDM-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase()
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO products (name, description, category, badge, image, basePrice) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, description, category || '', badge || '', image || '', basePrice || 0]
+      'INSERT INTO products (name, description, category, badge, image, basePrice, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, description, category || '', badge || '', image || '', basePrice || 0, finalBarcode]
     )
     const newId = result.insertId
     
     if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
-      const values = selectedCombos.slice(0, 3).map(cid => [newId, cid])
+      const values = selectedCombos.slice(0, 2).map(cid => [newId, cid])
       await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
+      
+      // Update combos to claim them if they were created before product existed
+      const comboIds = selectedCombos.slice(0, 2)
+      await pool.query('UPDATE combos SET product_id = ? WHERE id IN (?) AND product_id IS NULL', [newId, comboIds])
     }
 
     res.json({ success: true, message: 'Producto creado exitosamente', id: newId })
@@ -433,19 +447,27 @@ app.post('/api/products', async (req, res) => {
 // PUT /api/products/:id → Actualizar producto
 app.put('/api/products/:id', async (req, res) => {
   const { id } = req.params
-  const { name, description, category, badge, image, basePrice, selectedCombos } = req.body
+  const { name, description, category, badge, image, basePrice, selectedCombos, barcode } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
+
+  const finalBarcode = (barcode && barcode.trim() !== '') 
+    ? barcode 
+    : 'BDM-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase()
 
   try {
     await pool.query(
-      'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, updated_at = NOW() WHERE id = ?',
-      [name, description, category, badge, image, basePrice, id]
+      'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, barcode = ?, updated_at = NOW() WHERE id = ?',
+      [name, description, category, badge, image, basePrice, finalBarcode, id]
     )
     
     await pool.query('DELETE FROM product_combos WHERE product_id = ?', [id])
     if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
-      const values = selectedCombos.slice(0, 3).map(cid => [id, cid])
+      const limitCombos = selectedCombos.slice(0, 2)
+      const values = limitCombos.map(cid => [id, cid])
       await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
+
+      // Claim any newly created combos for this product
+      await pool.query('UPDATE combos SET product_id = ? WHERE id IN (?) AND product_id IS NULL', [id, limitCombos])
     }
 
     res.json({ success: true, message: 'Producto actualizado' })

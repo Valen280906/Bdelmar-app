@@ -177,9 +177,9 @@ export default {
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
-.btn-primary   { background: var(--color-primary);   color: white; box-shadow: var(--shadow-sm); }
-.btn-secondary { background: var(--color-secondary); color: white; box-shadow: var(--shadow-sm); }
-.btn-accent    { background: var(--color-accent);    color: white; box-shadow: var(--shadow-sm); }
+.btn-primary   { background: var(--color-primary);   color: var(--color-text-on-primary); box-shadow: var(--shadow-sm); }
+.btn-secondary { background: var(--color-secondary); color: var(--color-text-on-primary); box-shadow: var(--shadow-sm); }
+.btn-accent    { background: var(--color-accent);    color: var(--color-text-on-primary); box-shadow: var(--shadow-sm); }
 .btn-outline   { background: transparent; color: var(--color-primary); border: 2px solid var(--color-primary); }
 .btn-primary:hover, .btn-secondary:hover, .btn-accent:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
@@ -227,7 +227,7 @@ export default {
 }
 .preview-table th {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text-on-primary);
   padding: 0.6rem 1rem;
   text-align: left;
   font-weight: 600;
@@ -290,7 +290,7 @@ export default {
 .product-badge {
   font-size: 0.68rem; font-weight: 600;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text-on-primary);
   padding: 2px 8px; border-radius: 20px;
   width: fit-content;
   opacity: 0.9;

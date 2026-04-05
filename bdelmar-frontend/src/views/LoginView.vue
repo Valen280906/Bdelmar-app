@@ -586,7 +586,7 @@ function switchMode(newMode) {
 .btn-primary {
   padding: 1rem;
   background: var(--color-primary);
-  border: none; border-radius: var(--radius-pill); color: white; font-size: var(--font-size-btn); font-weight: 700;
+  border: none; border-radius: var(--radius-pill); color: var(--color-text-primary, white); font-size: var(--font-size-btn); font-weight: 700;
   text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
   transition: transform 0.15s, filter 0.15s, box-shadow 0.15s, opacity 0.15s; margin-top: 0.4rem;
   display: flex; align-items: center; justify-content: center; min-height: 52px;

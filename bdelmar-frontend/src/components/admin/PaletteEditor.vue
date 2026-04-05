@@ -7,7 +7,7 @@ import { useToast } from '../../composables/useToast.js'
 
 const themeStore = useThemeStore()
 const state = themeStore.state
-const { info } = useToast()
+const { info, error } = useToast()
 const emit = defineEmits(['color-changed'])
 
 const colorFields = [
@@ -32,6 +32,57 @@ function copyHex(hex) {
 function currentValue(key) {
   return state.draftColors ? state.draftColors[key] : state.currentColors[key]
 }
+
+function isValidHex(hex) {
+  return /^#[0-9A-F]{6}$/i.test(hex)
+}
+
+function onHexChange(key, event) {
+  const val = event.target.value.trim()
+  if (isValidHex(val)) {
+    if (!state.draftColors) themeStore.startDraft()
+    themeStore.setColor(key, val)
+    emit('color-changed')
+  } else {
+    // revertir a lo que había
+    event.target.value = currentValue(key)
+    error('Formato inválido. Debe ser #RRGGBB')
+  }
+}
+
+// --- WCAG 2.1 AA Contrast Logic ---
+function getLuminance(hex) {
+  if (!isValidHex(hex)) return 1;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const a = [r, g, b].map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+}
+
+function getContrastRatio(hex1, hex2) {
+  const L1 = getLuminance(hex1);
+  const L2 = getLuminance(hex2);
+  return L1 > L2 ? (L1 + 0.05) / (L2 + 0.05) : (L2 + 0.05) / (L1 + 0.05);
+}
+
+function getWCAGWarning(key) {
+  const bg = currentValue('bgPage')
+  let ratio = 0
+  
+  if (key === 'textPrimary') {
+    ratio = getContrastRatio(currentValue('textPrimary'), bg)
+    if (ratio < 4.5) return `⚠ El texto podría ser difícil de leer. Sugerencia: Busca mayor contraste con el fondo.`
+  } else if (key === 'primary' || key === 'accent') {
+    ratio = getContrastRatio(currentValue(key), bg)
+    if (ratio < 3.0) return `⚠ El color podría perderse. Intenta diferenciarlo más del fondo.`
+  } else if (key === 'bgPage') {
+    ratio = getContrastRatio(bg, currentValue('textPrimary'))
+    if (ratio < 4.5) return `⚠ Este fondo dificulta la lectura del texto. Sugerencia: Busca mayor contraste.`
+  }
+  return null
+}
+
 </script>
 
 <template>
@@ -67,7 +118,14 @@ function currentValue(key) {
           </div>
           <div class="color-meta">
             <div class="hex-row">
-              <code class="color-hex">{{ currentValue(field.key) }}</code>
+              <input 
+                type="text" 
+                class="color-hex-input" 
+                :value="currentValue(field.key)"
+                @change="onHexChange(field.key, $event)"
+                maxlength="7"
+                title="Escribe un color hex y presiona Enter"
+              />
               <button
                 class="copy-btn"
                 @click="copyHex(currentValue(field.key))"
@@ -77,6 +135,9 @@ function currentValue(key) {
               </button>
             </div>
             <span class="color-desc">{{ field.desc }}</span>
+            <span v-if="getWCAGWarning(field.key)" class="wcag-warning">
+              {{ getWCAGWarning(field.key) }}
+            </span>
           </div>
         </div>
       </div>
@@ -159,15 +220,22 @@ function currentValue(key) {
   flex-direction: column;
   gap: 2px;
 }
-code.color-hex {
+.color-hex-input {
   font-size: 0.82rem;
   font-family: 'Courier New', monospace;
   color: var(--color-text-primary);
   background: var(--color-bg-page);
-  padding: 2px 7px;
+  padding: 4px 6px;
   border-radius: 5px;
   font-weight: 600;
-  width: fit-content;
+  width: 75px;
+  border: 1px solid rgba(128,128,128,0.2);
+  outline: none;
+  transition: border-color 0.2s;
+  text-transform: uppercase;
+}
+.color-hex-input:focus {
+  border-color: var(--color-primary);
 }
 .hex-row {
   display: flex;
@@ -189,5 +257,11 @@ code.color-hex {
 .color-desc {
   font-size: 0.73rem;
   color: var(--color-text-secondary);
+}
+.wcag-warning {
+  font-size: 0.7rem;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 2px;
 }
 </style>
