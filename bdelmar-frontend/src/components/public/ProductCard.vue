@@ -1,5 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useCartStore } from '@/stores/useCartStore'
+import { useFavoritesStore } from '@/stores/useFavoritesStore'
+
+const cartStore = useCartStore()
+const favStore = useFavoritesStore()
 
 /**
  * Propiedades del componente listas para la integracion
@@ -34,6 +39,17 @@ const showShareMenu = ref(false)
 // Estado del modal de la tarjeta completa
 const showCardModal = ref(false)
 
+// Selected combo for cart (no longer needed, cart store auto-calculates)
+// Toast de carrito
+const cartAdded = ref(false)
+
+function addToCart() {
+  if (props.product.badge === 'Agotado') return
+  cartStore.addItem(props.product, quantity.value)
+  cartAdded.value = true
+  setTimeout(() => { cartAdded.value = false }, 1800)
+}
+
 /**
  * Incrementa la cantidad de productos seleccionada
  */
@@ -51,10 +67,10 @@ const decrementQuantity = () => {
 }
 
 /**
- * Calcula el precio total reactivamente
+ * Calcula el precio total reactivamente usando la lógica compartida del carrito (aplica combos auto)
  */
 const totalPrice = computed(() => {
-  return (props.product.basePrice * quantity.value).toFixed(2)
+  return cartStore.getLineTotal({ product: props.product, quantity: quantity.value }).toFixed(2)
 })
 
 /**
@@ -247,17 +263,23 @@ onMounted(() => {
 
       <!-- Accion Final y Precio -->
       <footer class="details-footer" @click.stop>
-        <button class="add-to-cart-btn" :disabled="product.badge === 'Agotado'" :class="{ 'is-agotado': product.badge === 'Agotado' }" @click.stop>
-          <svg v-if="product.badge !== 'Agotado'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="add-to-cart-btn" :disabled="product.badge === 'Agotado'" :class="{ 'is-agotado': product.badge === 'Agotado', 'is-added': cartAdded }" @click.stop="addToCart">
+          <svg v-if="!cartAdded && product.badge !== 'Agotado'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="9" cy="21" r="1"></circle>
             <circle cx="20" cy="21" r="1"></circle>
             <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
           </svg>
+          <svg v-else-if="cartAdded" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
           </svg>
-          <span class="btn-text">{{ product.badge === 'Agotado' ? 'AGOTADO' : 'AGREGAR' }}</span>
+          <span class="btn-text">{{ product.badge === 'Agotado' ? 'AGOTADO' : cartAdded ? '¡Agregado!' : 'AGREGAR' }}</span>
+        </button>
+        <button class="fav-heart-btn" :class="{ active: favStore.isFavorite(product.id) }" @click.stop="favStore.toggle(product)" :title="favStore.isFavorite(product.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'">
+          <svg width="18" height="18" viewBox="0 0 24 24" :fill="favStore.isFavorite(product.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
         </button>
         <div class="price-display">
           <span class="currency">$</span>{{ totalPrice }}
@@ -670,6 +692,27 @@ onMounted(() => {
   transform: none;
   box-shadow: none;
 }
+
+.add-to-cart-btn.is-added {
+  background: #2e7d32;
+}
+
+.fav-heart-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(128,128,128,0.2);
+  background: transparent;
+  cursor: pointer;
+  color: var(--pc-text-light);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.fav-heart-btn:hover { border-color: #e53935; color: #e53935; background: rgba(229,57,53,0.06); }
+.fav-heart-btn.active { color: #e53935; border-color: rgba(229,57,53,0.3); background: rgba(229,57,53,0.08); }
 
 .price-display {
   font-size: 1.4rem;

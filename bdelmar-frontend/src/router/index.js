@@ -32,12 +32,51 @@ const routes = [
                 name: 'AdminProductos',
                 component: () => import('../views/admin/AdminProducts.vue'),
             },
+            {
+                path: 'pagos',
+                name: 'AdminPagos',
+                component: () => import('../views/admin/AdminPayments.vue'),
+            },
+            {
+                path: 'pagos/:clientId',
+                name: 'ClientPaymentDetail',
+                component: () => import('../views/admin/ClientPaymentsDetail.vue'),
+            },
+            {
+                path: 'factura/:saleId',
+                name: 'InvoiceView',
+                component: () => import('../views/admin/InvoiceView.vue'),
+            },
         ],
     },
     {
         path: '/catalogo',
         name: 'Catalogo',
         component: () => import('../views/user/UserView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/carrito',
+        name: 'Carrito',
+        component: () => import('../views/user/CartView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/checkout',
+        name: 'Checkout',
+        component: () => import('../views/user/CheckoutView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/pago-movil',
+        name: 'PagoMovil',
+        component: () => import('../views/user/PagoMovilView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/perfil',
+        name: 'Perfil',
+        component: () => import('../views/user/ProfileView.vue'),
         meta: { requiresAuth: true },
     },
     {

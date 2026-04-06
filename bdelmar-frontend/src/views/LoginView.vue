@@ -8,7 +8,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import ThemeSwitcher from '../components/user/ThemeSwitcher.vue'
 
+import { useOrdersStore } from '@/stores/useOrdersStore'
+import { useCartStore } from '@/stores/useCartStore'
+import { useFavoritesStore } from '@/stores/useFavoritesStore'
+
 const router = useRouter()
+const ordersStore = useOrdersStore()
+const cartStore = useCartStore()
+const favStore = useFavoritesStore()
 const route = useRoute()
 
 // Estados: 'login', 'register', 'forgot', 'verify', 'reset'
@@ -91,7 +98,20 @@ async function handleLogin() {
     })
     const data = await res.json()
     if (data.success) {
+      const newUser = data.data.username || username.value
+      const prevUser = localStorage.getItem('bdelmar_user')
+
+      // Profile and session data are now isolated by username prefix, so no manual clearing is needed.
+      // This allows users to switch accounts and find their data intact.
+
       localStorage.setItem('bdelmar_role', data.data.role)
+      localStorage.setItem('bdelmar_user', newUser)
+
+      // Reload all stores with the new user's data
+      ordersStore.reloadForUser()
+      cartStore.reload()
+      favStore.reload()
+
       if (data.data.role === 'admin') router.push('/admin/configuracion')
       else router.push('/catalogo')
     } else {
