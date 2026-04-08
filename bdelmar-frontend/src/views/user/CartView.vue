@@ -28,6 +28,16 @@ function setCheckoutError(msg) {
   setTimeout(() => { if (checkoutError.value === msg) checkoutError.value = '' }, 5000)
 }
 
+// Tasa BCV (leída de la configuración de imprenta en admin)
+const tasaBCV = computed(() => {
+  const raw = JSON.parse(localStorage.getItem('bdm_factura_imprenta') || '{}')
+  return parseFloat(raw.tasaBCV) || 0
+})
+function toBS(usd) {
+  if (!tasaBCV.value) return ''
+  return 'Bs. ' + (parseFloat(usd) * tasaBCV.value).toFixed(2)
+}
+
 const isEmpty = computed(() => cartStore.items.length === 0)
 
 // ---------- Coupon (placeholder) ----------
@@ -358,22 +368,22 @@ function ppClose() {
 
           <div class="summary-divider"></div>
 
-          <div class="s-row"><span>Subtotal</span><span>${{ subtotal.toFixed(2) }}</span></div>
-          <div class="s-row"><span>Envío Estimado</span><span>${{ shippingCost.toFixed(2) }}</span></div>
-          <div class="s-row s-bold"><span>Total Orden</span><span>${{ orderTotal.toFixed(2) }}</span></div>
+          <div class="s-row"><span>Subtotal</span><div class="s-amount"><span>${{ subtotal.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(subtotal) }}</small></div></div>
+          <div class="s-row"><span>Envío Estimado</span><div class="s-amount"><span>${{ shippingCost.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(shippingCost) }}</small></div></div>
+          <div class="s-row s-bold"><span>Total Orden</span><div class="s-amount"><span>${{ orderTotal.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(orderTotal) }}</small></div></div>
           <div class="s-row s-debt" v-if="debt > 0">
             <span>Deuda Pendiente</span>
-            <span>${{ debt.toFixed(2) }}</span>
+            <div class="s-amount"><span>${{ debt.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(debt) }}</small></div>
           </div>
 
           <div class="summary-divider" v-if="debt > 0"></div>
           <div class="s-row s-grand" v-if="debt > 0">
             <span>Total Final a Pagar</span>
-            <strong>${{ grandTotal.toFixed(2) }}</strong>
+            <div class="s-amount"><strong>${{ grandTotal.toFixed(2) }}</strong><small v-if="tasaBCV">{{ toBS(grandTotal) }}</small></div>
           </div>
           <div class="s-row s-grand" v-else>
             <span>Total Final a Pagar</span>
-            <strong>${{ orderTotal.toFixed(2) }}</strong>
+            <div class="s-amount"><strong>${{ orderTotal.toFixed(2) }}</strong><small v-if="tasaBCV">{{ toBS(orderTotal) }}</small></div>
           </div>
         </div>
 
@@ -619,6 +629,10 @@ function ppClose() {
 
 /* LAYOUT */
 .cart-layout { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; display: grid; grid-template-columns: 1fr 400px; gap: 2rem; align-items: start; }
+
+/* Dual-currency amount display */
+.s-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; }
+.s-amount small { font-size: 0.72rem; color: var(--color-text-secondary); font-weight: 500; }
 
 /* CHECKOUT ERROR TOAST */
 .checkout-error-toast {

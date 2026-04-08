@@ -43,6 +43,11 @@ const routes = [
                 component: () => import('../views/admin/ClientPaymentsDetail.vue'),
             },
             {
+                path: 'facturas',
+                name: 'AdminFacturas',
+                component: () => import('../views/admin/AdminFacturasView.vue'),
+            },
+            {
                 path: 'factura/:saleId',
                 name: 'InvoiceView',
                 component: () => import('../views/admin/InvoiceView.vue'),

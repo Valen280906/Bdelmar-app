@@ -10,9 +10,10 @@ const route = useRoute()
 const sidebarOpen = ref(true)
 
 const navItems = [
-  { icon: 'settings', label: 'Configuración', path: '/admin/configuracion' },
-  { icon: 'products', label: 'Productos', path: '/admin/productos' },
-  { icon: 'payments', label: 'Pagos', path: '/admin/pagos' },
+  { icon: 'settings',  label: 'Configuración', path: '/admin/configuracion' },
+  { icon: 'products',  label: 'Productos',      path: '/admin/productos' },
+  { icon: 'payments',  label: 'Pagos',           path: '/admin/pagos' },
+  { icon: 'facturas',  label: 'Facturas',        path: '/admin/facturas' },
 ]
 
 function isActive(path) {
@@ -61,6 +62,12 @@ function logout() {
           <svg v-if="item.icon === 'payments'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
             <line x1="1" y1="10" x2="23" y2="10"></line>
+          </svg>
+          <svg v-if="item.icon === 'facturas'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
           </svg>
           <span v-if="sidebarOpen">{{ item.label }}</span>
         </router-link>
@@ -243,5 +250,12 @@ function logout() {
   overflow-y: auto;
   padding: 0;
   min-width: 0;
+}
+
+@media print {
+  .sidebar { display: none !important; }
+  .admin-shell { display: block !important; height: auto !important; }
+  .admin-content { overflow: visible !important; height: auto !important; width: 100% !important; padding: 0 !important; }
+  body { background: white !important; margin: 0 !important; padding: 0 !important; }
 }
 </style>
