@@ -6,7 +6,20 @@ import { useOrdersStore } from '@/stores/useOrdersStore'
 const router = useRouter()
 const ordersStore = useOrdersStore()
 
-const orders = computed(() => ordersStore.orders)
+const dateFilter = ref('') // Formato YYYY-MM-DD para el input date
+
+const filteredOrders = computed(() => {
+  let list = [...ordersStore.orders]
+  if (dateFilter.value) {
+    list = list.filter(o => {
+      const oDate = new Date(o.date).toISOString().split('T')[0]
+      return oDate === dateFilter.value
+    })
+  }
+  return list
+})
+
+const orders = filteredOrders // Alias for existing code compatibility
 
 // Metrics
 const totalBilled = computed(() => orders.value.reduce((s, o) => s + o.total, 0))
@@ -123,10 +136,20 @@ const statusCls = { pending: 'badge-pending', partial: 'badge-partial', paid: 'b
 
     <!-- Lista de órdenes -->
     <div class="orders-panel">
-      <h2 class="panel-title">Órdenes Registradas</h2>
+      <div class="panel-header-flex">
+        <h2 class="panel-title">Órdenes Registradas</h2>
+        <div class="filter-group">
+          <label class="filter-label">Filtrar por fecha:</label>
+          <div class="date-input-wrapper">
+            <input type="date" v-model="dateFilter" class="admin-date-filter" />
+            <button v-if="dateFilter" class="clear-filter" @click="dateFilter = ''" title="Limpiar filtro">×</button>
+          </div>
+        </div>
+      </div>
 
       <div v-if="orders.length === 0" class="empty-orders">
-        <p>No hay órdenes registradas aún. Las órdenes aparecen aquí cuando los usuarios realizan compras.</p>
+        <p v-if="dateFilter">No se encontraron órdenes para la fecha seleccionada.</p>
+        <p v-else>No hay órdenes registradas aún. Las órdenes aparecen aquí cuando los usuarios realizan compras.</p>
       </div>
 
       <div v-else class="orders-table-wrapper">
@@ -269,10 +292,42 @@ const statusCls = { pending: 'badge-pending', partial: 'badge-partial', paid: 'b
 .metric-val { font-size: 1.4rem; font-weight: 800; }
 
 .orders-panel { background: var(--color-bg-card); border: 1px solid rgba(128,128,128,0.1); border-radius: 20px; padding: 1.5rem; }
-.panel-title { font-size: 1.15rem; font-weight: 800; margin: 0 0 1.25rem; }
-.orders-table-wrapper { overflow-x: auto; }
+.panel-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem; }
+.panel-title { font-size: 1.15rem; font-weight: 800; margin: 0; }
+
+.filter-group { display: flex; align-items: center; gap: 0.75rem; }
+.filter-label { font-size: 0.8rem; font-weight: 600; color: var(--color-text-secondary); }
+.date-input-wrapper { position: relative; display: flex; align-items: center; }
+.admin-date-filter { 
+  background: var(--color-bg-input); 
+  border: 1px solid rgba(128,128,128,0.2); 
+  border-radius: 8px; 
+  padding: 0.4rem 0.6rem; 
+  font-size: 0.85rem; 
+  color: var(--color-text-primary); 
+  outline: none; 
+  transition: 0.2s;
+}
+.admin-date-filter:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(25,118,210,0.1); }
+.clear-filter { 
+  position: absolute; right: 8px; background: none; border: none; font-size: 1.1rem; 
+  color: var(--color-text-secondary); cursor: pointer; padding: 0 4px;
+}
+
+.orders-table-wrapper { 
+  overflow-y: auto; 
+  max-height: 480px; /* Tamaño aproximado de 4-5 órdenes */
+  border: 1px solid rgba(128,128,128,0.05);
+  border-radius: 12px;
+}
+/* Estilo scrollbar personalizado */
+.orders-table-wrapper::-webkit-scrollbar { width: 6px; }
+.orders-table-wrapper::-webkit-scrollbar-track { background: transparent; }
+.orders-table-wrapper::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.2); border-radius: 10px; }
+
 .orders-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.orders-table th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-secondary); padding: 0.75rem 0.75rem; background: rgba(128,128,128,0.04); text-align: left; white-space: nowrap; }
+.orders-table thead { position: sticky; top: 0; z-index: 10; }
+.orders-table th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-secondary); padding: 0.75rem 0.75rem; background: #f8f9fa; text-align: left; white-space: nowrap; }
 .orders-table td { padding: 0.85rem 0.75rem; border-bottom: 1px solid rgba(128,128,128,0.07); vertical-align: middle; }
 .orders-table tbody tr:hover { background: rgba(128,128,128,0.02); }
 
