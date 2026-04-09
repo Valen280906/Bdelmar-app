@@ -84,6 +84,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: '/checkout-success/:orderId',
+        name: 'CheckoutSuccess',
+        component: () => import('../views/user/CheckoutSuccessView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
         path: '/perfil',
         name: 'Perfil',
         component: () => import('../views/user/ProfileView.vue'),

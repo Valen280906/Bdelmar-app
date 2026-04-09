@@ -9,8 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paypal/paypal-js": "^9.6.0",
     "datatables.net-dt": "^2.3.7",
     "datatables.net-vue3": "^3.0.4",
+    "html2pdf.js": "^0.14.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.29",
     "vue-router": "^4.6.4",

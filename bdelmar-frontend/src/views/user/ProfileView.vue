@@ -3,6 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFavoritesStore } from '@/stores/useFavoritesStore'
 import { useOrdersStore } from '@/stores/useOrdersStore'
+import DataTable from 'datatables.net-vue3'
+import DataTablesCore from 'datatables.net-dt'
+import 'datatables.net-dt/css/dataTables.dataTables.css'
+
+DataTable.use(DataTablesCore)
 
 const router = useRouter()
 const favStore = useFavoritesStore()
@@ -283,31 +288,37 @@ const initials = computed(() => {
           <p>Todavía no has realizado ningún pedido.</p>
           <button class="btn-outline" @click="router.push('/catalogo')">Ir a comprar</button>
         </div>
-        <div v-else class="orders-list">
-          <div class="order-card" v-for="order in userOrders" :key="order.id">
-            <div class="order-header">
-              <div>
-                <span class="order-id"># {{ order.id }}</span>
-                <span class="order-date">{{ new Date(order.date).toLocaleDateString('es-VE', { year:'numeric', month:'long', day:'numeric' }) }}</span>
-              </div>
-              <span class="status-badge-order" :class="statusClass[order.status]">{{ statusLabel[order.status] }}</span>
-            </div>
-            <div class="order-items-list">
-              <span v-for="item in order.items" :key="item.name" class="order-item-chip">
-                {{ item.name }} ×{{ item.quantity }}
-              </span>
-            </div>
-            <div class="order-footer">
-              <div>
-                <span style="display:block;margin-bottom:0.3rem;">Método: <strong>{{ order.paymentMethod === 'paypal' ? 'PayPal' : 'Pago Móvil' }}</strong></span>
-                <span class="order-total">Total: <strong>${{ Number(order.total).toFixed(2) }}</strong></span>
-              </div>
-              <button class="btn-icon" @click="openOrderDetails(order)" title="Ver detalles">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                Ver Detalles
-              </button>
-            </div>
-          </div>
+        <div v-else class="orders-table-wrapper" style="overflow: visible; padding: 1rem; background: var(--color-bg-card); border-radius: 16px;">
+          <DataTable class="display orders-table" :options="{ pageLength: 5, language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' } }">
+            <thead>
+              <tr>
+                <th>ID Orden</th>
+                <th>Fecha</th>
+                <th>Artículos</th>
+                <th>Método</th>
+                <th>Total USD</th>
+                <th>Estado</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="order in userOrders" :key="order.id">
+                <td><span class="order-id" style="font-family:monospace; color:var(--color-primary)">{{ order.id }}</span></td>
+                <td><span class="order-date">{{ new Date(order.date).toLocaleDateString('es-VE') }}</span></td>
+                <td>
+                  <span style="color:#666; font-size:0.8rem">{{ order.items.length }} items</span>
+                </td>
+                <td style="font-size:0.8rem">{{ order.paymentMethod === 'paypal' ? 'PayPal' : 'Pago Móvil' }}</td>
+                <td><strong style="color:#2e7d32">${{ Number(order.total).toFixed(2) }}</strong></td>
+                <td><span class="status-badge-order" :class="statusClass[order.status]">{{ statusLabel[order.status] }}</span></td>
+                <td>
+                  <button class="btn-icon" @click="openOrderDetails(order)" title="Ver detalles">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </DataTable>
         </div>
       </section>
 

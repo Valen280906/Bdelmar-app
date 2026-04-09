@@ -220,8 +220,9 @@ onMounted(() => {
       <section class="info-section">
         <h3 class="section-title">PRODUCT INFO</h3>
         <p class="section-text">{{ product.description }}</p>
-        <div v-if="product.barcode" style="margin-top: 1.5rem; text-align: center;">
-          <p class="product-barcode">*{{ product.barcode }}*</p>
+        <!-- Barcode removido de la vista de cliente para evitar bugs visuales -->
+        <div v-if="product.barcode" style="margin-top: 1rem; text-align: left;">
+          <span style="font-size: 0.65rem; color: #999; font-family: monospace;">Ref: {{ product.barcode }}</span>
         </div>
       </section>
 

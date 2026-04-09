@@ -121,13 +121,13 @@ WHERE p.name = 'Curbina';
 CREATE TABLE IF NOT EXISTS coupons (
     id INT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
-    description VARCHAR(255) NULL,
-    discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-    discount_value DECIMAL(10,2) NOT NULL,
+    type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+    value DECIMAL(10,2) NOT NULL,
     min_purchase DECIMAL(10,2) DEFAULT 0.00,
     max_uses INT DEFAULT 0,
-    uses_count INT DEFAULT 0,
+    used_count INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
+    expires_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

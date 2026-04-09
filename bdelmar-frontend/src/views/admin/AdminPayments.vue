@@ -2,6 +2,11 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrdersStore } from '@/stores/useOrdersStore'
+import DataTable from 'datatables.net-vue3'
+import DataTablesCore from 'datatables.net-dt'
+import 'datatables.net-dt/css/dataTables.dataTables.css'
+
+DataTable.use(DataTablesCore)
 
 const router = useRouter()
 const ordersStore = useOrdersStore()
@@ -149,8 +154,8 @@ const statusCls = { pending: 'badge-pending', partial: 'badge-partial', paid: 'b
         <p v-else>No hay órdenes registradas aún. Las órdenes aparecen aquí cuando los usuarios realizan compras.</p>
       </div>
 
-      <div v-else class="orders-table-wrapper">
-        <table class="orders-table">
+      <div v-else class="orders-table-wrapper" style="overflow: visible; padding: 1rem;">
+        <DataTable class="display orders-table" :options="{ pageLength: 5, language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' } }">
           <thead>
             <tr>
               <th>ID Orden</th>
@@ -198,8 +203,6 @@ const statusCls = { pending: 'badge-pending', partial: 'badge-partial', paid: 'b
                   <button class="action-btn-sm" @click="router.push('/admin/pagos/' + order.id)" title="Ver detalle">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   </button>
-                  <!-- Manual add-payment button removed by client request -> auto-distribution in place -->
-                  <!-- Botón de factura movido al módulo /admin/facturas -->
                   <button class="action-btn-sm delete-btn" @click="confirmDelete(order.id)" title="Eliminar orden">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
@@ -207,7 +210,7 @@ const statusCls = { pending: 'badge-pending', partial: 'badge-partial', paid: 'b
               </td>
             </tr>
           </tbody>
-        </table>
+        </DataTable>
       </div>
     </div>
 

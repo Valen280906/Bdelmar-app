@@ -8,11 +8,13 @@ const nodemailer = require('nodemailer')
 const multer = require('multer')
 const fs = require('fs')
 const path = require('path')
+const htmlPdf = require('html-pdf-node')
 require('dotenv').config()
 
 const app = express()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Configuración de almacenamiento para multer
 const uploadDir = path.join(__dirname, 'uploads')
@@ -50,9 +52,60 @@ const pool = mysql.createPool({
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
   },
+})
+
+// Endpoint para enviar factura por email automáticamente (con soporte de adjuntos PDF)
+app.post('/api/send-invoice-email', async (req, res) => {
+  const { to, subject, htmlBody, invoiceHtml, pdfBase64, pdfName } = req.body
+  if (!to) {
+    return res.status(400).json({ success: false, error: 'Receptor de correo requerido (to)' })
+  }
+  
+  try {
+    const mailOptions = {
+      from: `"B DEL MAR 3011" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+      to,
+      subject: subject || 'Tu Factura Electrónica B DEL MAR',
+      html: htmlBody || '<p>Adjuntamos tu factura digital.</p>',
+      attachments: []
+    }
+
+    // Opción 1: invoiceHtml recibido → generar PDF real con html-pdf-node (Chromium)
+    if (invoiceHtml) {
+      try {
+        const pdfBuffer = await htmlPdf.generatePdf(
+          { content: invoiceHtml },
+          { format: 'Letter', printBackground: true, margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } }
+        )
+        mailOptions.attachments.push({
+          filename: pdfName || 'Factura.pdf',
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        })
+      } catch (pdfErr) {
+        console.error('Error generando PDF con html-pdf-node:', pdfErr.message)
+        // Si falla el PDF, igual enviamos el correo sin adjunto
+      }
+    } else if (pdfBase64) {
+      // Opción 2: fallback base64 (por si se usa desde otro lugar)
+      const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '')
+      mailOptions.attachments.push({
+        filename: pdfName || 'Factura.pdf',
+        content: Buffer.from(base64Data, 'base64'),
+        contentType: 'application/pdf'
+      })
+    }
+
+    const info = await transporter.sendMail(mailOptions)
+    console.log('Factura enviada automáticamente a:', to, info.response)
+    res.json({ success: true, message: 'Email enviado exitosamente.' })
+  } catch (error) {
+    console.error('Error al enviar correo (Factura):', error)
+    res.status(500).json({ success: false, error: 'Fallo al despachar correo electrónico automático.' })
+  }
 })
 
 // ============================================================
@@ -490,13 +543,23 @@ app.delete('/api/products/:id', async (req, res) => {
 })
 
 // ============================================================
-// === CUPONES ================================================
+// === CUPONES – Sistema con 3 tipos ===========================
+// ============================================================
+// Tipo 1: special_day   → aplica en días específicos de la semana
+// Tipo 2: purchase_count → se otorga tras N compras en el mes
+// Tipo 3: promo_code    → código que el admin define manualmente
 // ============================================================
 
-// GET /api/coupons → Todos los cupones
+// GET /api/coupons → Todos los cupones (admin)
 app.get('/api/coupons', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM coupons ORDER BY id DESC')
+    const [rows] = await pool.query(`
+      SELECT c.*,
+        (SELECT COUNT(*) FROM user_coupons uc WHERE uc.coupon_id = c.id) AS claimed_count,
+        (SELECT COUNT(*) FROM user_coupons uc WHERE uc.coupon_id = c.id AND uc.is_used = TRUE) AS used_by_users
+      FROM coupons c
+      ORDER BY c.id DESC
+    `)
     res.json({ success: true, data: rows })
   } catch (err) {
     console.error('GET /api/coupons error:', err.message)
@@ -504,32 +567,96 @@ app.get('/api/coupons', async (req, res) => {
   }
 })
 
-// POST /api/coupons → Crear cupón
+// GET /api/coupons/active → Cupones activos para mostrar en el home del usuario
+app.get('/api/coupons/active', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM coupons
+      WHERE is_active = TRUE
+        AND (expires_at IS NULL OR expires_at > NOW())
+      ORDER BY id DESC
+    `)
+    res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error('GET /api/coupons/active error:', err.message)
+    res.status(500).json({ success: false, error: 'Error obteniendo cupones activos' })
+  }
+})
+
+// POST /api/coupons → Crear cupón (admin)
 app.post('/api/coupons', async (req, res) => {
-  const { code, description, discount_type, discount_value, min_purchase, max_uses, is_active } = req.body
-  if (!code || !discount_value) return res.status(400).json({ success: false, error: 'Código y valor son requeridos' })
+  const {
+    code, coupon_category, value, discount_type, description,
+    min_purchase, max_uses, is_active, expires_at,
+    special_days, required_purchases
+  } = req.body
+
+  if (!coupon_category) return res.status(400).json({ success: false, error: 'Categoría de cupón requerida' })
+  if (!value || value <= 0) return res.status(400).json({ success: false, error: 'Valor de descuento inválido' })
+  if (coupon_category === 'promo_code' && !code) return res.status(400).json({ success: false, error: 'Código requerido para cupones de tipo promo' })
+
+  // Para special_day y purchase_count generamos un código interno si no se da
+  const finalCode = code ? code.toUpperCase().trim() : ('AUTO-' + Date.now().toString(36).toUpperCase())
+
   try {
     const [result] = await pool.query(
-      'INSERT INTO coupons (code, description, discount_type, discount_value, min_purchase, max_uses, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [code, description || '', discount_type || 'percentage', discount_value, min_purchase || 0, max_uses || 0, is_active !== undefined ? is_active : true]
+      `INSERT INTO coupons
+        (code, coupon_category, value, discount_type, description, min_purchase, max_uses, is_active, expires_at, special_days, required_purchases)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        finalCode,
+        coupon_category,
+        value,
+        discount_type || 'percentage',
+        description || null,
+        min_purchase || 0,
+        max_uses || 0,
+        is_active !== undefined ? is_active : true,
+        expires_at || null,
+        special_days ? JSON.stringify(special_days) : null,
+        required_purchases || 3
+      ]
     )
     res.json({ success: true, id: result.insertId })
   } catch (err) {
     console.error('POST /api/coupons error:', err.message)
     if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'El código de cupón ya existe' })
-    res.status(500).json({ success: false, error: 'Error creando cupón' })
+    res.status(500).json({ success: false, error: 'Error creando cupón: ' + err.message })
   }
 })
 
 // PUT /api/coupons/:id → Actualizar cupón
 app.put('/api/coupons/:id', async (req, res) => {
   const { id } = req.params
-  const { code, description, discount_type, discount_value, min_purchase, max_uses, is_active } = req.body
-  if (!code || !discount_value) return res.status(400).json({ success: false, error: 'Código y valor son requeridos' })
+  const {
+    code, coupon_category, value, discount_type, description,
+    min_purchase, max_uses, is_active, expires_at,
+    special_days, required_purchases
+  } = req.body
+
+  if (!value || value <= 0) return res.status(400).json({ success: false, error: 'Valor de descuento inválido' })
+
   try {
     await pool.query(
-      'UPDATE coupons SET code=?, description=?, discount_type=?, discount_value=?, min_purchase=?, max_uses=?, is_active=? WHERE id=?',
-      [code, description || '', discount_type || 'percentage', discount_value, min_purchase || 0, max_uses || 0, is_active !== undefined ? is_active : true, id]
+      `UPDATE coupons SET
+        code=?, coupon_category=?, value=?, discount_type=?, description=?,
+        min_purchase=?, max_uses=?, is_active=?, expires_at=?,
+        special_days=?, required_purchases=?
+       WHERE id=?`,
+      [
+        code ? code.toUpperCase().trim() : null,
+        coupon_category || 'promo_code',
+        value,
+        discount_type || 'percentage',
+        description || null,
+        min_purchase || 0,
+        max_uses || 0,
+        is_active !== undefined ? is_active : true,
+        expires_at || null,
+        special_days ? JSON.stringify(special_days) : null,
+        required_purchases || 3,
+        id
+      ]
     )
     res.json({ success: true, message: 'Cupón actualizado' })
   } catch (err) {
@@ -551,18 +678,124 @@ app.delete('/api/coupons/:id', async (req, res) => {
   }
 })
 
-// POST /api/coupons/validate → Validar y usar cupón (checkout)
+// ─── USER COUPONS ─────────────────────────────────────────────────────────
+
+// GET /api/user/:userId/coupons → Cupones disponibles del usuario
+app.get('/api/user/:userId/coupons', async (req, res) => {
+  const { userId } = req.params
+  try {
+    const [rows] = await pool.query(`
+      SELECT c.*, uc.id AS user_coupon_id, uc.is_used, uc.used_at, uc.assigned_at
+      FROM user_coupons uc
+      JOIN coupons c ON uc.coupon_id = c.id
+      WHERE uc.user_id = ?
+        AND c.is_active = TRUE
+        AND (c.expires_at IS NULL OR c.expires_at > NOW())
+      ORDER BY uc.assigned_at DESC
+    `, [userId])
+    res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error('GET /api/user/:userId/coupons error:', err.message)
+    res.status(500).json({ success: false, error: 'Error obteniendo cupones del usuario' })
+  }
+})
+
+// POST /api/user/:userId/register-purchase → Registrar compra y asignar cupones automáticamente
+app.post('/api/user/:userId/register-purchase', async (req, res) => {
+  const { userId } = req.params
+  const { order_ref, amount } = req.body
+
+  if (!order_ref) return res.status(400).json({ success: false, error: 'order_ref requerido' })
+
+  try {
+    // 1. Registrar la compra
+    await pool.query(
+      'INSERT IGNORE INTO user_purchase_log (user_id, order_ref, amount) VALUES (?, ?, ?)',
+      [userId, order_ref, amount || 0]
+    )
+
+    // 2. Contar compras del mes actual
+    const [countResult] = await pool.query(`
+      SELECT COUNT(*) AS count FROM user_purchase_log
+      WHERE user_id = ?
+        AND MONTH(purchased_at) = MONTH(NOW())
+        AND YEAR(purchased_at) = YEAR(NOW())
+    `, [userId])
+    const monthlyCount = countResult[0].count
+
+    // 3. Buscar cupones de tipo purchase_count activos cuyos requisitos se cumplan
+    const [eligibleCoupons] = await pool.query(`
+      SELECT * FROM coupons
+      WHERE coupon_category = 'purchase_count'
+        AND is_active = TRUE
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND required_purchases <= ?
+    `, [monthlyCount])
+
+    // 4. Asignar cupones elegibles al usuario (si no los tiene ya)
+    let newlyAssigned = 0
+    for (const coupon of eligibleCoupons) {
+      try {
+        await pool.query(
+          'INSERT IGNORE INTO user_coupons (user_id, coupon_id) VALUES (?, ?)',
+          [userId, coupon.id]
+        )
+        newlyAssigned++
+      } catch (e) { /* ignorar duplicados */ }
+    }
+
+    res.json({
+      success: true,
+      monthly_purchases: monthlyCount,
+      newly_assigned_coupons: newlyAssigned
+    })
+  } catch (err) {
+    console.error('POST /api/user/:userId/register-purchase error:', err.message)
+    res.status(500).json({ success: false, error: 'Error registrando compra' })
+  }
+})
+
+// POST /api/coupons/validate → Validar cupón en el checkout
 app.post('/api/coupons/validate', async (req, res) => {
-  const { code, cartTotal } = req.body
+  const { code, cartTotal, user_id } = req.body
   if (!code) return res.status(400).json({ success: false, error: 'Código requerido' })
+
   try {
     const [rows] = await pool.query('SELECT * FROM coupons WHERE code = ? LIMIT 1', [code])
     if (rows.length === 0) return res.status(400).json({ success: false, error: 'Cupón no encontrado' })
-    
+
     const coupon = rows[0]
+
+    // Verificaciones generales
     if (!coupon.is_active) return res.status(400).json({ success: false, error: 'Cupón inactivo' })
-    if (coupon.max_uses > 0 && coupon.uses_count >= coupon.max_uses) return res.status(400).json({ success: false, error: 'Cupón agotado' })
-    if (cartTotal && cartTotal < coupon.min_purchase) return res.status(400).json({ success: false, error: `Compra mínima requerida: $${coupon.min_purchase}` })
+    if (coupon.expires_at && new Date() > new Date(coupon.expires_at))
+      return res.status(400).json({ success: false, error: 'El cupón ha expirado' })
+    if (cartTotal && cartTotal < coupon.min_purchase)
+      return res.status(400).json({ success: false, error: `Compra mínima requerida: $${coupon.min_purchase}` })
+
+    // Verificar tipo special_day: el día actual debe estar en special_days
+    if (coupon.coupon_category === 'special_day') {
+      const days = coupon.special_days ? JSON.parse(coupon.special_days) : []
+      const todayDay = new Date().getDay() // 0=Dom, 1=Lun, ..., 6=Sab
+      if (!days.includes(todayDay))
+        return res.status(400).json({ success: false, error: 'Este cupón solo es válido en días específicos' })
+    }
+
+    // Verificar que el usuario no lo haya usado ya (si se proporciona user_id)
+    if (user_id) {
+      const [used] = await pool.query(
+        'SELECT is_used FROM user_coupons WHERE user_id = ? AND coupon_id = ? LIMIT 1',
+        [user_id, coupon.id]
+      )
+      if (used.length > 0 && used[0].is_used)
+        return res.status(400).json({ success: false, error: 'Ya usaste este cupón anteriormente' })
+    }
+
+    // Para promo_code: verificar max_uses global
+    if (coupon.coupon_category === 'promo_code') {
+      if (coupon.max_uses > 0 && coupon.used_count >= coupon.max_uses)
+        return res.status(400).json({ success: false, error: 'Cupón agotado' })
+    }
 
     res.json({ success: true, data: coupon })
   } catch (err) {
@@ -571,25 +804,127 @@ app.post('/api/coupons/validate', async (req, res) => {
   }
 })
 
-// POST /api/coupons/use → Aumentar el contador de uso
+// POST /api/coupons/use → Marcar cupón como usado por el usuario
 app.post('/api/coupons/use', async (req, res) => {
-  const { code } = req.body
+  const { code, user_id } = req.body
   if (!code) return res.json({ success: true })
   try {
-    const [rows] = await pool.query('SELECT id, max_uses, uses_count FROM coupons WHERE code = ? LIMIT 1', [code])
-    if (rows.length > 0) {
-       const coupon = rows[0]
-       await pool.query('UPDATE coupons SET uses_count = uses_count + 1 WHERE id = ?', [coupon.id])
-       if (coupon.max_uses > 0 && (coupon.uses_count + 1) >= coupon.max_uses) {
-          await pool.query('UPDATE coupons SET is_active = FALSE WHERE id = ?', [coupon.id])
-       }
+    const [rows] = await pool.query('SELECT id FROM coupons WHERE code = ? LIMIT 1', [code])
+    if (rows.length === 0) return res.json({ success: true })
+
+    const coupon = rows[0]
+
+    // Incrementar contador global
+    await pool.query('UPDATE coupons SET used_count = used_count + 1 WHERE id = ?', [coupon.id])
+
+    // Si hay usuario, registrar en user_coupons
+    if (user_id) {
+      // Insertar o actualizar user_coupon como usado
+      await pool.query(`
+        INSERT INTO user_coupons (user_id, coupon_id, is_used, used_at)
+        VALUES (?, ?, TRUE, NOW())
+        ON DUPLICATE KEY UPDATE is_used = TRUE, used_at = NOW()
+      `, [user_id, coupon.id])
     }
+
     res.json({ success: true })
-  } catch(err) {
+  } catch (err) {
     console.error('POST /api/coupons/use error:', err.message)
     res.status(500).json({ success: false, error: 'Error al usar cupón' })
   }
 })
+
+// ============================================================
+// === INTEGRACIÓN PAYPAL =====================================
+// ============================================================
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET = process.env.PAYPAL_SECRET;
+const PAYPAL_URL = process.env.PAYPAL_ENVIRONMENT === 'sandbox' 
+  ? 'https://api-m.sandbox.paypal.com' 
+  : 'https://api-m.paypal.com';
+
+async function generatePayPalAccessToken() {
+  const auth = Buffer.from(PAYPAL_CLIENT_ID + ':' + PAYPAL_SECRET).toString('base64');
+  const response = await fetch(`${PAYPAL_URL}/v1/oauth2/token`, {
+    method: 'POST',
+    body: 'grant_type=client_credentials',
+    headers: {
+      Authorization: `Basic ${auth}`,
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('PayPal token error:', errorText);
+    throw new Error('Error al obtener token de PayPal (Verifica tu PAYPAL_CLIENT_ID y PAYPAL_SECRET)');
+  }
+  const data = await response.json();
+  return data.access_token;
+}
+
+app.post('/api/paypal/create-order', async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    // --- MOCK MODE: Si se usa 'test' completamos la acción localmente
+    if (!PAYPAL_CLIENT_ID || PAYPAL_CLIENT_ID === 'test') {
+      return res.json({ success: true, orderID: 'MOCK_ORDER_' + Date.now() });
+    }
+
+    const token = await generatePayPalAccessToken();
+    const response = await fetch(`${PAYPAL_URL}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: Number(amount).toFixed(2) }
+        }]
+      })
+    });
+    const order = await response.json();
+    if (!response.ok) throw new Error(order.message || 'Error creando orden PayPal');
+    res.json({ success: true, orderID: order.id });
+  } catch (err) {
+    console.error('PayPal create-order error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/paypal/capture-order', async (req, res) => {
+  try {
+    const { orderID } = req.body;
+
+    // --- MOCK MODE: Si se usa 'test' completamos la acción localmente
+    if (!PAYPAL_CLIENT_ID || PAYPAL_CLIENT_ID === 'test') {
+      return res.json({
+        success: true,
+        captureData: {
+          id: orderID,
+          status: 'COMPLETED',
+          payer: { email_address: 'mock_buyer@paypal.com' }
+        }
+      });
+    }
+
+    const token = await generatePayPalAccessToken();
+    const response = await fetch(`${PAYPAL_URL}/v2/checkout/orders/${orderID}/capture`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      }
+    });
+    const captureData = await response.json();
+    if (!response.ok) throw new Error(captureData.message || 'Error capturano orden PayPal');
+    res.json({ success: true, captureData });
+  } catch (err) {
+    console.error('PayPal capture-order error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ============================================================
 // === INICIAR SERVIDOR =======================================

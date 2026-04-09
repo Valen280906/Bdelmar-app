@@ -230,11 +230,17 @@ const uploadFile = async (file) => {
 // Cargar imagen en tiempo real para previsualizar miniatura
 const getImageUrl = (imgName) => {
   if (!imgName) return 'https://via.placeholder.com/150'
+  // Si viene del backend nuevo de archivos:
   if (imgName.startsWith('/uploads')) {
     return `http://localhost:3001${imgName}`
   }
+  // Si es un archivo local antiguo, aseguramos que tenga extensión si no la tiene
   try {
-    return new URL(`../../assets/${imgName}.jpg`, import.meta.url).href
+    let cleanName = imgName
+    if (!cleanName.includes('.')) {
+      cleanName = cleanName + '.jpg'
+    }
+    return new URL(`../../assets/${cleanName}`, import.meta.url).href
   } catch (e) {
     return 'https://via.placeholder.com/150'
   }

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import LandingHeader from '@/components/public/LandingHeader.vue'
 import LandingBanner from '@/components/public/LandingBanner.vue'
+import LandingCoupons from '@/components/public/LandingCoupons.vue'
 import LandingNosotros from '@/components/public/LandingNosotros.vue'
 import LandingServices from '@/components/public/LandingServices.vue'
 import LandingFooter from '@/components/public/LandingFooter.vue'
@@ -26,6 +27,7 @@ function closeLegal() {
     
     <main>
       <LandingBanner />
+      <LandingCoupons />
       <LandingNosotros />
       <LandingServices />
     </main>

@@ -8,6 +8,9 @@ const router = useRouter()
 const cartStore = useCartStore()
 const ordersStore = useOrdersStore()
 
+const curUser = localStorage.getItem('bdelmar_user') || 'guest'
+function getUk(k) { return `bdm_user_${curUser}_${k}` }
+
 // ─── Load cart summary from sessionStorage ───
 const checkoutData = ref({})
 onMounted(() => {
@@ -16,8 +19,8 @@ onMounted(() => {
   else router.push('/carrito')
 
   // Pre-fill from profile
-  emisorPhone.value = localStorage.getItem('bdm_profile_phone') || ''
-  emisorCedula.value = localStorage.getItem('bdm_profile_rif') || ''
+  emisorPhone.value = localStorage.getItem(getUk('profile_phone')) || ''
+  emisorCedula.value = localStorage.getItem(getUk('profile_rif')) || ''
 })
 
 const grandTotal = computed(() => checkoutData.value.grandTotal || cartStore.totalPrice)
@@ -82,10 +85,10 @@ async function confirmPayment() {
   await new Promise(r => setTimeout(r, 1800))
 
   const clientInfo = {
-    name:         localStorage.getItem('bdm_profile_name')  || 'Cliente',
-    email:        localStorage.getItem('bdm_profile_email') || '',
+    name:         localStorage.getItem(getUk('profile_name'))  || 'Cliente',
+    email:        localStorage.getItem(getUk('profile_email')) || '',
     phone:        emisorPrefix.value + emisorPhone.value,
-    address:      localStorage.getItem('bdm_profile_address') || '',
+    address:      localStorage.getItem(getUk('profile_address')) || '',
     rif:          emisorCedType.value + '-' + emisorCedula.value,
     pagoMovilPhone: emisorPrefix.value + emisorPhone.value,
     pagoMovilBank:  BANKS.find(b => b.id === emisorBank.value)?.name || emisorBank.value,
@@ -124,7 +127,7 @@ async function confirmPayment() {
   cartStore.clearCart()
   sessionStorage.removeItem('bdm_checkout')
   isProcessing.value  = false
-  currentStep.value   = 4 // confirmation screen
+  router.push('/checkout-success/' + order.id)
 }
 
 const selectedBankLabel = computed(() => BANKS.find(b => b.id === emisorBank.value)?.name || '')
@@ -144,7 +147,6 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
           <strong>B-DEL MAR 3011</strong>
           <span>Pago por Transferencia Bancaria / Pago Móvil</span>
         </div>
-        <div class="ve-shield">🇻🇪</div>
       </div>
 
       <!-- ─── Stepper ─── -->
@@ -380,44 +382,6 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
         </aside>
       </div>
 
-      <!-- ─── CONFIRMATION SCREEN (step 4) ─── -->
-      <div v-if="currentStep === 4" class="confirmed-screen">
-        <div v-if="isProcessing" class="processing-wrap">
-          <div class="spinner-ring"></div>
-          <p>Procesando tu pago...</p>
-        </div>
-        <div v-else class="confirmed-card">
-          <div class="confirmed-icon">
-            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <h2>¡Pago Registrado!</h2>
-          <p class="confirmed-order-id">Orden # {{ confirmedOrder?.id }}</p>
-          <p class="confirmed-msg">Tu transferencia ha sido registrada. El administrador verificará el número de referencia y confirmará el pago. Te notificaremos.</p>
-
-          <div class="confirmed-details">
-            <div class="cd-row"><span>Total de la Orden</span><strong>${{ confirmedOrder?.total.toFixed(2) }}</strong></div>
-            <div class="cd-row" v-if="confirmedOrder?.totalPaid < confirmedOrder?.total">
-              <span>Abonado Ahora</span>
-              <strong style="color:#e65100">${{ confirmedOrder?.totalPaid.toFixed(2) }}</strong>
-            </div>
-            <div class="cd-row" v-if="confirmedOrder?.totalPaid < confirmedOrder?.total">
-              <span>Deuda Pendiente</span>
-              <strong style="color:#c62828">${{ (confirmedOrder?.total - confirmedOrder?.totalPaid).toFixed(2) }}</strong>
-            </div>
-            <div class="cd-row">
-              <span>Referencia</span>
-              <strong>{{ confirmedOrder?.referenceNumber || referenceNumber }}</strong>
-            </div>
-            <div class="cd-row"><span>Estado</span><span class="status-tag">En revisión</span></div>
-          </div>
-
-          <div class="confirmed-actions">
-            <button class="btn-next-step" @click="router.push('/perfil')">Ver mis Pedidos →</button>
-            <button class="btn-back-step" @click="router.push('/catalogo')" style="margin-top:0.5rem;">Seguir Comprando</button>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 </template>
@@ -425,7 +389,7 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-.pm-page { min-height: 100vh; background: #eef1f5; font-family: 'Inter', sans-serif; }
+.pm-page { min-height: 100vh; background: var(--color-bg-page); font-family: var(--font-family, 'Inter', sans-serif); color: var(--color-text-primary); }
 
 /* Flag accent */
 .ve-header-flag {
@@ -436,21 +400,21 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
 .pm-inner { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
 
 /* Branding */
-.pm-brand { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; background: #fff; border-radius: 14px; padding: 1rem 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.pm-brand { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; background: var(--color-bg-card); border-radius: 14px; padding: 1rem 1.5rem; box-shadow: var(--shadow-sm); }
 .pm-logo { height: 40px; object-fit: contain; }
 .pm-brand-info { flex: 1; }
-.pm-brand-info strong { display: block; font-size: 1rem; font-weight: 800; }
-.pm-brand-info span { font-size: 0.78rem; color: #777; }
+.pm-brand-info strong { display: block; font-size: 1rem; font-weight: 800; color: var(--color-text-primary); }
+.pm-brand-info span { font-size: 0.78rem; color: var(--color-text-secondary); }
 .ve-shield { font-size: 2rem; }
 
 /* Stepper */
-.pm-stepper { display: flex; align-items: center; margin-bottom: 2rem; background: #fff; border-radius: 14px; padding: 1rem 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.05); gap: 0; }
+.pm-stepper { display: flex; align-items: center; margin-bottom: 2rem; background: var(--color-bg-card); border-radius: 14px; padding: 1rem 1.5rem; box-shadow: var(--shadow-sm); gap: 0; }
 .pm-step { display: flex; align-items: center; gap: 0.6rem; }
-.pm-step-dot { width: 32px; height: 32px; border-radius: 50%; background: rgba(128,128,128,0.15); color: #999; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; transition: all 0.3s; }
-.pm-step.active .pm-step-dot { background: #1a73e8; color: #fff; box-shadow: 0 0 0 4px rgba(26,115,232,0.2); }
+.pm-step-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--color-image-bg); color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; transition: all 0.3s; }
+.pm-step.active .pm-step-dot { background: var(--color-primary); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 20%, transparent); }
 .pm-step.done .pm-step-dot { background: #2e7d32; color: #fff; }
-.pm-step-label { font-size: 0.82rem; font-weight: 600; color: #999; white-space: nowrap; }
-.pm-step.active .pm-step-label { color: #1a73e8; }
+.pm-step-label { font-size: 0.82rem; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap; }
+.pm-step.active .pm-step-label { color: var(--color-primary); }
 .pm-step.done .pm-step-label { color: #2e7d32; }
 .pm-step-line { flex: 1; height: 2px; background: rgba(128,128,128,0.15); margin: 0 0.75rem; min-width: 30px; }
 
@@ -459,29 +423,29 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
 @media (max-width: 768px) { .pm-main { grid-template-columns: 1fr; } }
 
 /* Form card */
-.pm-card { background: #fff; border-radius: 16px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-.pm-card-title { font-size: 1.1rem; font-weight: 800; margin: 0 0 1.5rem; color: #1a1a2e; }
-.step-sub { font-weight: 500; color: #888; font-size: 0.9rem; }
-.pm-section-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f0f0f0; }
+.pm-card { background: var(--color-bg-card); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow-sm); }
+.pm-card-title { font-size: 1.1rem; font-weight: 800; margin: 0 0 1.5rem; color: var(--color-text-primary); }
+.step-sub { font-weight: 500; color: var(--color-text-secondary); font-size: 0.9rem; }
+.pm-section-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid rgba(128,128,128,0.1); color: var(--color-text-primary); }
 
 /* Form fields */
 .form-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
-.form-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; color: #333; min-width: 170px; flex-shrink: 0; }
-.form-select { border: 1.5px solid rgba(0,0,0,0.12); border-radius: 10px; padding: 0.6rem 0.85rem; font-family: inherit; font-size: 0.9rem; background: #fff; flex: 1; outline: none; cursor: pointer; }
-.form-select:focus { border-color: #1a73e8; }
+.form-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary); min-width: 170px; flex-shrink: 0; }
+.form-select { border: 1.5px solid rgba(128,128,128,0.15); border-radius: 10px; padding: 0.6rem 0.85rem; font-family: inherit; font-size: 0.9rem; background: var(--color-bg-page); color: var(--color-text-primary); flex: 1; outline: none; cursor: pointer; }
+.form-select:focus { border-color: var(--color-primary); }
 .bank-select { flex: 1; }
 .prefix-select { width: 90px; flex-shrink: 0; }
-.form-input { border: 1.5px solid rgba(0,0,0,0.12); border-radius: 10px; padding: 0.6rem 0.85rem; font-family: inherit; font-size: 0.9rem; flex: 1; outline: none; min-width: 0; }
-.form-input:focus { border-color: #1a73e8; }
+.form-input { border: 1.5px solid rgba(128,128,128,0.15); border-radius: 10px; padding: 0.6rem 0.85rem; font-family: inherit; font-size: 0.9rem; background: var(--color-bg-page); color: var(--color-text-primary); flex: 1; outline: none; min-width: 0; }
+.form-input:focus { border-color: var(--color-primary); background: var(--color-bg-card); }
 .input-split { display: flex; gap: 0.5rem; flex: 1; }
-.optional { font-size: 0.75rem; color: #aaa; font-weight: 400; }
+.optional { font-size: 0.75rem; color: var(--color-text-secondary); font-weight: 400; }
 
 /* Amount */
 .amount-row { flex-direction: column; align-items: flex-start; }
 .amount-row .form-label { min-width: auto; }
-.amount-input-wrap { display: flex; align-items: center; border: 1.5px solid rgba(0,0,0,0.12); border-radius: 10px; overflow: hidden; width: 200px; }
-.amount-prefix { padding: 0.6rem 0.75rem; background: #f5f5f5; font-weight: 700; color: #555; border-right: 1px solid rgba(0,0,0,0.1); }
-.amount-input { border: none; border-radius: 0; padding: 0.6rem 0.85rem; width: 100%; }
+.amount-input-wrap { display: flex; align-items: center; border: 1.5px solid rgba(128,128,128,0.15); border-radius: 10px; overflow: hidden; width: 200px; background: var(--color-bg-page); }
+.amount-prefix { padding: 0.6rem 0.75rem; background: var(--color-image-bg); font-weight: 700; color: var(--color-text-secondary); border-right: 1px solid rgba(128,128,128,0.15); }
+.amount-input { border: none; border-radius: 0; padding: 0.6rem 0.85rem; width: 100%; background: transparent; color: var(--color-text-primary); }
 .amount-input:focus { outline: none; }
 .amount-hint { font-size: 0.78rem; color: #e65100; margin: 0.3rem 0 0; background: rgba(230,81,0,0.06); padding: 0.4rem 0.75rem; border-radius: 6px; border-left: 3px solid #e65100; }
 .form-error { color: #c62828; font-size: 0.82rem; margin: 0.5rem 0; }
@@ -489,21 +453,21 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
 /* Receptor */
 .receptor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
 @media (max-width: 600px) { .receptor-grid { grid-template-columns: 1fr; } }
-.receptor-field { background: #f8f9fc; border-radius: 10px; padding: 0.9rem 1rem; }
-.rec-label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 0.3rem; }
-.rec-value { font-size: 0.9rem; font-weight: 700; }
-.copyable { color: #1a73e8; }
-.pay-amount-display { display: flex; justify-content: space-between; align-items: center; background: #f0f7ff; border: 1.5px solid #90caf9; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
-.amount-highlight { font-size: 1.4rem; font-weight: 900; color: #1565c0; }
+.receptor-field { background: var(--color-image-bg); border-radius: 10px; padding: 0.9rem 1rem; }
+.rec-label { display: block; font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 0.3rem; }
+.rec-value { font-size: 0.9rem; font-weight: 700; color: var(--color-text-primary); }
+.copyable { color: var(--color-primary); }
+.pay-amount-display { display: flex; justify-content: space-between; align-items: center; background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-card)); border: 1.5px solid color-mix(in srgb, var(--color-primary) 35%, transparent); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+.amount-highlight { font-size: 1.4rem; font-weight: 900; color: var(--color-primary); }
 
 /* Confirm grid */
 .confirm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
 .confirm-block.full { grid-column: 1 / -1; }
 @media (max-width: 600px) { .confirm-grid { grid-template-columns: 1fr; } .confirm-block.full { grid-column: auto; } }
-.confirm-block { background: #f8f9fc; border-radius: 12px; padding: 1rem 1.25rem; }
-.confirm-block-title { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 0.75rem; }
-.confirm-block p { font-size: 0.85rem; color: #555; margin: 0.3rem 0; display: flex; align-items: center; gap: 0.4rem; }
-.confirm-block p strong { color: #1a1a2e; }
+.confirm-block { background: var(--color-image-bg); border-radius: 12px; padding: 1rem 1.25rem; }
+.confirm-block-title { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 0.75rem; }
+.confirm-block p { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0.3rem 0; display: flex; align-items: center; gap: 0.4rem; }
+.confirm-block p strong { color: var(--color-text-primary); }
 
 /* Reference */
 .ref-section { margin-bottom: 1.5rem; }
@@ -513,27 +477,27 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
 .ref-hint { font-size: 0.78rem; color: #888; margin-top: 0.4rem; }
 
 /* Action buttons */
-.btn-next-step { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: #1a73e8; color: #fff; border: none; border-radius: 10px; padding: 0.85rem 1.5rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-.btn-next-step:hover { background: #1557b0; }
-.btn-back-step { width: 100%; background: none; border: 1.5px solid rgba(0,0,0,0.12); border-radius: 10px; padding: 0.75rem; font-size: 0.9rem; cursor: pointer; color: #555; font-weight: 600; }
-.btn-back-step:hover { border-color: #1a73e8; color: #1a73e8; }
-.btn-confirm { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: #1a73e8; color: #fff; border: none; border-radius: 10px; padding: 0.9rem; font-size: 1rem; font-weight: 800; cursor: pointer; margin-bottom: 0.75rem; }
-.btn-confirm:disabled { background: #aaa; cursor: not-allowed; }
-.btn-back-link { display: block; text-align: center; background: none; border: none; color: #1a73e8; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.btn-next-step { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: var(--color-primary); color: #fff; border: none; border-radius: 10px; padding: 0.85rem 1.5rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: filter 0.2s; }
+.btn-next-step:hover { filter: brightness(1.1); }
+.btn-back-step { width: 100%; background: none; border: 1.5px solid rgba(128,128,128,0.2); border-radius: 10px; padding: 0.75rem; font-size: 0.9rem; cursor: pointer; color: var(--color-text-secondary); font-weight: 600; }
+.btn-back-step:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.btn-confirm { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: var(--color-primary); color: #fff; border: none; border-radius: 10px; padding: 0.9rem; font-size: 1rem; font-weight: 800; cursor: pointer; margin-bottom: 0.75rem; transition: filter 0.2s; }
+.btn-confirm:disabled { background: var(--color-text-secondary); opacity: 0.5; cursor: not-allowed; }
+.btn-back-link { display: block; text-align: center; background: none; border: none; color: var(--color-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .step2-actions { display: flex; flex-direction: column; gap: 0.75rem; }
 
 /* Sidebar */
 .pm-sidebar { position: sticky; top: 20px; }
-.sidebar-card { background: #fff; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-.sidebar-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(0,0,0,0.07); }
-.sidebar-brand-name { font-weight: 800; font-size: 0.9rem; }
+.sidebar-card { background: var(--color-bg-card); border-radius: 16px; padding: 1.25rem; box-shadow: var(--shadow-sm); }
+.sidebar-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(128,128,128,0.1); }
+.sidebar-brand-name { font-weight: 800; font-size: 0.9rem; color: var(--color-text-primary); }
 .sidebar-items { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.75rem; }
-.sb-item { display: flex; justify-content: space-between; font-size: 0.82rem; color: #555; }
-.sb-item em { font-style: normal; color: #888; margin-left: 0.2rem; }
-.sb-divider { height: 1px; background: rgba(0,0,0,0.07); margin: 0.5rem 0; }
-.sb-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: #555; padding: 0.2rem 0; }
+.sb-item { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--color-text-secondary); }
+.sb-item em { font-style: normal; color: var(--color-text-secondary); margin-left: 0.2rem; }
+.sb-divider { height: 1px; background: rgba(128,128,128,0.1); margin: 0.5rem 0; }
+.sb-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--color-text-secondary); padding: 0.2rem 0; }
 .sb-debt { color: #c62828; font-weight: 600; }
-.sb-total { font-size: 1rem; font-weight: 800; color: #1a1a2e; }
+.sb-total { font-size: 1rem; font-weight: 800; color: var(--color-text-primary); }
 .sb-paying { font-size: 0.88rem; font-weight: 700; }
 
 /* Spinner */

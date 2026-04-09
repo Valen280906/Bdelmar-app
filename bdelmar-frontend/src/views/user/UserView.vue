@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import HeaderComponent from '@/components/user/HeaderComponent.vue'
 import CarouselBanner from '@/components/user/CarouselBanner.vue'
+import UserCoupons from '@/components/user/UserCoupons.vue'
 import ServiciosSection from '@/components/user/ServiciosSection.vue'
 import ProductosSection from '@/components/user/ProductosSection.vue'
 import FooterComponent from '@/components/user/FooterComponent.vue'
@@ -20,6 +21,7 @@ onMounted(() => {
     
     <main>
       <CarouselBanner id="inicio" />
+      <UserCoupons id="cupones" />
       <ServiciosSection id="servicios" />
       <ProductosSection id="productos" />
     </main>
