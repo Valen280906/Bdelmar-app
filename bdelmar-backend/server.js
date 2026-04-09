@@ -399,7 +399,7 @@ app.get('/api/products', async (req, res) => {
       FROM product_combos pc
       JOIN combos c ON pc.combo_id = c.id
     `)
-    
+
     const productsWithCombos = products.map(p => {
       p.combos = relations.filter(r => r.product_id === p.id).map(r => ({
         id: r.id, name: r.name, unit: r.unit, price: r.price
@@ -427,11 +427,11 @@ app.post('/api/products', async (req, res) => {
       [name, description, category || '', badge || '', image || '', basePrice || 0, finalBarcode]
     )
     const newId = result.insertId
-    
+
     if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
       const values = selectedCombos.slice(0, 2).map(cid => [newId, cid])
       await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
-      
+
       // Update combos to claim them if they were created before product existed
       const comboIds = selectedCombos.slice(0, 2)
       await pool.query('UPDATE combos SET product_id = ? WHERE id IN (?) AND product_id IS NULL', [newId, comboIds])
@@ -450,8 +450,8 @@ app.put('/api/products/:id', async (req, res) => {
   const { name, description, category, badge, image, basePrice, selectedCombos, barcode } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
 
-  const finalBarcode = (barcode && barcode.trim() !== '') 
-    ? barcode 
+  const finalBarcode = (barcode && barcode.trim() !== '')
+    ? barcode
     : 'BDM-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase()
 
   try {
@@ -459,7 +459,7 @@ app.put('/api/products/:id', async (req, res) => {
       'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, barcode = ?, updated_at = NOW() WHERE id = ?',
       [name, description, category, badge, image, basePrice, finalBarcode, id]
     )
-    
+
     await pool.query('DELETE FROM product_combos WHERE product_id = ?', [id])
     if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
       const limitCombos = selectedCombos.slice(0, 2)
@@ -489,6 +489,107 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 })
 
+// ============================================================
+// === CUPONES ================================================
+// ============================================================
+
+// GET /api/coupons → Todos los cupones
+app.get('/api/coupons', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM coupons ORDER BY id DESC')
+    res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error('GET /api/coupons error:', err.message)
+    res.status(500).json({ success: false, error: 'Error obteniendo cupones' })
+  }
+})
+
+// POST /api/coupons → Crear cupón
+app.post('/api/coupons', async (req, res) => {
+  const { code, description, discount_type, discount_value, min_purchase, max_uses, is_active } = req.body
+  if (!code || !discount_value) return res.status(400).json({ success: false, error: 'Código y valor son requeridos' })
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO coupons (code, description, discount_type, discount_value, min_purchase, max_uses, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [code, description || '', discount_type || 'percentage', discount_value, min_purchase || 0, max_uses || 0, is_active !== undefined ? is_active : true]
+    )
+    res.json({ success: true, id: result.insertId })
+  } catch (err) {
+    console.error('POST /api/coupons error:', err.message)
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'El código de cupón ya existe' })
+    res.status(500).json({ success: false, error: 'Error creando cupón' })
+  }
+})
+
+// PUT /api/coupons/:id → Actualizar cupón
+app.put('/api/coupons/:id', async (req, res) => {
+  const { id } = req.params
+  const { code, description, discount_type, discount_value, min_purchase, max_uses, is_active } = req.body
+  if (!code || !discount_value) return res.status(400).json({ success: false, error: 'Código y valor son requeridos' })
+  try {
+    await pool.query(
+      'UPDATE coupons SET code=?, description=?, discount_type=?, discount_value=?, min_purchase=?, max_uses=?, is_active=? WHERE id=?',
+      [code, description || '', discount_type || 'percentage', discount_value, min_purchase || 0, max_uses || 0, is_active !== undefined ? is_active : true, id]
+    )
+    res.json({ success: true, message: 'Cupón actualizado' })
+  } catch (err) {
+    console.error('PUT /api/coupons error:', err.message)
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'El código de cupón ya existe' })
+    res.status(500).json({ success: false, error: 'Error actualizando cupón' })
+  }
+})
+
+// DELETE /api/coupons/:id → Eliminar cupón
+app.delete('/api/coupons/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    await pool.query('DELETE FROM coupons WHERE id = ?', [id])
+    res.json({ success: true, message: 'Cupón eliminado' })
+  } catch (err) {
+    console.error('DELETE /api/coupons error:', err.message)
+    res.status(500).json({ success: false, error: 'Error eliminando cupón' })
+  }
+})
+
+// POST /api/coupons/validate → Validar y usar cupón (checkout)
+app.post('/api/coupons/validate', async (req, res) => {
+  const { code, cartTotal } = req.body
+  if (!code) return res.status(400).json({ success: false, error: 'Código requerido' })
+  try {
+    const [rows] = await pool.query('SELECT * FROM coupons WHERE code = ? LIMIT 1', [code])
+    if (rows.length === 0) return res.status(400).json({ success: false, error: 'Cupón no encontrado' })
+    
+    const coupon = rows[0]
+    if (!coupon.is_active) return res.status(400).json({ success: false, error: 'Cupón inactivo' })
+    if (coupon.max_uses > 0 && coupon.uses_count >= coupon.max_uses) return res.status(400).json({ success: false, error: 'Cupón agotado' })
+    if (cartTotal && cartTotal < coupon.min_purchase) return res.status(400).json({ success: false, error: `Compra mínima requerida: $${coupon.min_purchase}` })
+
+    res.json({ success: true, data: coupon })
+  } catch (err) {
+    console.error('POST /api/coupons/validate error:', err.message)
+    res.status(500).json({ success: false, error: 'Error validando cupón' })
+  }
+})
+
+// POST /api/coupons/use → Aumentar el contador de uso
+app.post('/api/coupons/use', async (req, res) => {
+  const { code } = req.body
+  if (!code) return res.json({ success: true })
+  try {
+    const [rows] = await pool.query('SELECT id, max_uses, uses_count FROM coupons WHERE code = ? LIMIT 1', [code])
+    if (rows.length > 0) {
+       const coupon = rows[0]
+       await pool.query('UPDATE coupons SET uses_count = uses_count + 1 WHERE id = ?', [coupon.id])
+       if (coupon.max_uses > 0 && (coupon.uses_count + 1) >= coupon.max_uses) {
+          await pool.query('UPDATE coupons SET is_active = FALSE WHERE id = ?', [coupon.id])
+       }
+    }
+    res.json({ success: true })
+  } catch(err) {
+    console.error('POST /api/coupons/use error:', err.message)
+    res.status(500).json({ success: false, error: 'Error al usar cupón' })
+  }
+})
 
 // ============================================================
 // === INICIAR SERVIDOR =======================================

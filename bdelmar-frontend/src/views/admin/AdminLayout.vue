@@ -10,10 +10,11 @@ const route = useRoute()
 const sidebarOpen = ref(true)
 
 const navItems = [
-  { icon: 'settings',  label: 'Configuración', path: '/admin/configuracion' },
-  { icon: 'products',  label: 'Productos',      path: '/admin/productos' },
-  { icon: 'payments',  label: 'Pagos',           path: '/admin/pagos' },
-  { icon: 'facturas',  label: 'Facturas',        path: '/admin/facturas' },
+  { icon: 'settings', label: 'Configuración', path: '/admin/configuracion' },
+  { icon: 'products', label: 'Productos', path: '/admin/productos' },
+  { icon: 'coupons', label: 'Cupones', path: '/admin/cupones' },
+  { icon: 'payments', label: 'Pagos', path: '/admin/pagos' },
+  { icon: 'facturas', label: 'Facturas', path: '/admin/facturas' },
 ]
 
 function isActive(path) {
@@ -68,6 +69,10 @@ function logout() {
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <svg v-if="item.icon === 'coupons'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+            <line x1="4" y1="22" x2="4" y2="15"></line>
           </svg>
           <span v-if="sidebarOpen">{{ item.label }}</span>
         </router-link>

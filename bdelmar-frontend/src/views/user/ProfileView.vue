@@ -8,7 +8,7 @@ const router = useRouter()
 const favStore = useFavoritesStore()
 const ordersStore = useOrdersStore()
 
-const activeTab = ref('info') // 'info' | 'favorites' | 'orders'
+const activeTab = ref('info') // 'info' | 'favorites' | 'orders' | 'coupons'
 
 const currentLoggedUser = localStorage.getItem('bdelmar_user') || 'guest'
 function getUk(key) { return `bdm_user_${currentLoggedUser}_${key}` }
@@ -82,8 +82,22 @@ const statusClass = {
   dispatched: 'badge-dispatched'
 }
 
+const activeCoupons = ref([])
+
 // Reload the store with fresh data for the currently logged-in user
-onMounted(() => ordersStore.reloadForUser())
+onMounted(async () => {
+  ordersStore.reloadForUser()
+  try {
+    const res = await fetch('http://localhost:3001/api/coupons')
+    if (res.ok) {
+      const data = await res.json()
+      // Mostrar solo cupones activos y no agotados
+      activeCoupons.value = (data.data || []).filter(c => c.is_active && (c.max_uses === 0 || c.uses_count < c.max_uses))
+    }
+  } catch (e) {
+    console.error('Error fetching coupons', e)
+  }
+})
 
 const userOrders = computed(() => ordersStore.currentUserOrders)
 const initials = computed(() => {
@@ -117,6 +131,11 @@ const initials = computed(() => {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           Mis Órdenes
           <span v-if="userOrders.length > 0" class="badge-count">{{ userOrders.length }}</span>
+        </button>
+        <button class="pnav-item" :class="{ active: activeTab === 'coupons' }" @click="activeTab = 'coupons'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+          Mis Cupones
+          <span v-if="activeCoupons.length > 0" class="badge-count">{{ activeCoupons.length }}</span>
         </button>
         <button class="pnav-item back-item" @click="router.push('/catalogo')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -287,6 +306,30 @@ const initials = computed(() => {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 Ver Detalles
               </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: Cupones -->
+      <section v-if="activeTab === 'coupons'" class="tab-section">
+        <h2 class="tab-title">Cupones Disponibles</h2>
+        <div v-if="activeCoupons.length === 0" class="empty-state">
+          <div class="empty-icon">🎟️</div>
+          <p>No hay cupones promocionales disponibles en este momento.</p>
+        </div>
+        <div v-else class="coupons-grid">
+          <div class="coupon-card" v-for="coupon in activeCoupons" :key="coupon.id">
+            <div class="coupon-header">
+              <span class="coupon-code">{{ coupon.code }}</span>
+              <span class="coupon-discount">
+                {{ coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : `$${coupon.discount_value} OFF` }}
+              </span>
+            </div>
+            <p class="coupon-desc">{{ coupon.description || 'Promoción especial B-DEL MAR 3011' }}</p>
+            <div class="coupon-footer">
+              <span class="coupon-condition">{{ coupon.min_purchase > 0 ? `Compra mínima: $${coupon.min_purchase}` : 'Aplica para cualquier compra' }}</span>
+              <button class="btn-copy-code" @click="() => { navigator.clipboard.writeText(coupon.code); alert('Código copiado: ' + coupon.code) }">Copiar Código</button>
             </div>
           </div>
         </div>
@@ -538,6 +581,19 @@ const initials = computed(() => {
 .empty-state p { color: var(--color-text-secondary); margin-bottom: 1.25rem; }
 .btn-outline { background: none; border: 2px solid var(--color-primary); color: var(--color-primary); border-radius: 10px; padding: 0.7rem 1.5rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
 .btn-outline:hover { background: var(--color-primary); color: #fff; }
+
+/* CUPONES */
+.coupons-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+.coupon-card { background: var(--color-bg-card); border: 2px dashed rgba(128,128,128,0.2); border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; position: relative; transition: all 0.2s; }
+.coupon-card:hover { border-color: var(--color-primary); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+.coupon-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+.coupon-code { font-size: 1.4rem; font-weight: 900; color: var(--color-text-primary); letter-spacing: 0.05em; background: rgba(128,128,128,0.05); padding: 0.2rem 0.5rem; border-radius: 8px; }
+.coupon-discount { background: #e8f5e9; color: #2e7d32; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: 800; font-size: 0.9rem; }
+.coupon-desc { font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0; }
+.coupon-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(128,128,128,0.1); }
+.coupon-condition { font-size: 0.75rem; color: #888; font-weight: 600; }
+.btn-copy-code { background: var(--color-primary); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+.btn-copy-code:hover { filter: brightness(1.1); }
 
 @media (max-width: 768px) {
   .profile-page { flex-direction: column; }

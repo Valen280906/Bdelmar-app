@@ -40,15 +40,45 @@ function toBS(usd) {
 
 const isEmpty = computed(() => cartStore.items.length === 0)
 
-// ---------- Coupon (placeholder) ----------
+// ---------- Coupon ----------
+const appliedCoupon = ref(null)
 const couponCode   = ref('')
 const couponMsg    = ref('')
 const couponOk     = ref(false)
-function applyCoupon() {
-  if (!couponCode.value.trim()) { couponMsg.value = 'Ingresa un código de cupón.'; return }
-  couponMsg.value = 'Código inválido. Los cupones estarán disponibles próximamente.'
-  couponOk.value  = false
+
+async function applyCoupon() {
+  const code = couponCode.value.trim()
+  if (!code) { 
+    couponMsg.value = 'Ingresa un código de cupón.'
+    couponOk.value = false
+    appliedCoupon.value = null
+    return 
+  }
+  
+  try {
+    const res = await fetch('http://localhost:3001/api/coupons/validate', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ code, cartTotal: subtotal.value })
+    })
+    const data = await res.json()
+    if (!data.success) {
+       couponMsg.value = data.error || 'Código inválido'
+       couponOk.value = false
+       appliedCoupon.value = null
+    } else {
+       couponMsg.value = 'Cupón aplicado correctamente'
+       couponOk.value = true
+       appliedCoupon.value = data.data
+    }
+  } catch (e) {
+    console.error('Error validating coupon', e)
+    couponMsg.value = 'Error al validar cupón'
+    couponOk.value = false
+    appliedCoupon.value = null
+  }
 }
+
 
 // ---------- Shipping by postal code ----------
 const postalCode = ref('')
@@ -71,35 +101,30 @@ const shippingLabel = computed(() => shipping.value.label)
 
 // ---------- Totals ----------
 const subtotal    = computed(() => cartStore.totalPrice)
+const discountAmount = computed(() => {
+  if (!appliedCoupon.value) return 0
+  const c = appliedCoupon.value
+  if (c.type === 'percentage') {
+    return subtotal.value * (c.value / 100)
+  }
+  return Number(c.value)
+})
 const debt        = computed(() => ordersStore.pendingDebtAmount)
-const orderTotal  = computed(() => subtotal.value + shippingCost.value)
+const orderTotal  = computed(() => Math.max(0, subtotal.value - discountAmount.value) + shippingCost.value)
 const grandTotal  = computed(() => orderTotal.value + debt.value)
 
 // ---------- Payment method ----------
 const selectedMethod = ref('pagomovil')
 
-// ---------- PayPal Modal Logic ----------
+// ---------- Real PayPal Logic ----------
+import { loadScript } from '@paypal/paypal-js'
 const showPaypalModal = ref(false)
-const ppStep = ref(1)
-const ppAmountInput = ref(0)
-const ppEmailInput = ref('')
-const ppPassword = ref('')
-const ppSelectedCard = ref('visa')
-const ppRefNum = ref('')
-const isAddingCard = ref(false)
-const newCard = ref({ num: '', exp: '', cvc: '', type: 'visa' })
-
-// Custom dynamically added card if any
-const addedCard = ref(null)
-
-const paypalBalance = ref(0) // dynamic balance
-const ppProfileNameDisplay = ref('')
-const ppProfileAddressDisplay = ref('')
+const paypalError = ref('')
+const isPaypalLoading = ref(false)
 
 const curUser = localStorage.getItem('bdelmar_user') || 'guest'
 function getUk(k) { return `bdm_user_${curUser}_${k}` }
 
-// Non-reactive getters
 function getProfileName() {
   return localStorage.getItem(getUk('profile_name')) || curUser || 'Usuario'
 }
@@ -119,15 +144,6 @@ const postalCodesMap = {
   'Trujillo': ['31'], 'La Guaira': ['11'], 'Yaracuy': ['32'], 'Zulia': ['40']
 }
 
-function initPaypalBalance() {
-  let bal = parseFloat(localStorage.getItem(getUk('paypal_balance')))
-  if (isNaN(bal) || bal < 15) {
-    bal = Math.floor(Math.random() * (100 - 30 + 1) + 30) // Random between 30 and 100
-    localStorage.setItem(getUk('paypal_balance'), bal.toFixed(2))
-  }
-  paypalBalance.value = bal
-}
-
 function goCheckout() {
   if (isEmpty.value) return
 
@@ -143,7 +159,6 @@ function goCheckout() {
     return
   }
   
-  // -- validation logic continues --
   const validPrefixes = postalCodesMap[userState] || []
   const codePrefix = String(postalCode.value).substring(0, 2)
   if (!validPrefixes.includes(codePrefix)) {
@@ -153,6 +168,8 @@ function goCheckout() {
   
   const checkoutData = {
     subtotal:      subtotal.value,
+    discount:      discountAmount.value,
+    couponCode:    appliedCoupon.value ? appliedCoupon.value.code : null,
     shipping:      shippingCost.value,
     shippingLabel: shippingLabel.value,
     postalCode:    postalCode.value,
@@ -163,76 +180,76 @@ function goCheckout() {
   sessionStorage.setItem('bdm_checkout', JSON.stringify(checkoutData))
 
   if (selectedMethod.value === 'paypal') {
-    initPaypalBalance()
-    ppEmailInput.value = localStorage.getItem(getUk('profile_paypal')) || localStorage.getItem(getUk('profile_email')) || ''
-    ppProfileNameDisplay.value = getProfileName()
-    ppProfileAddressDisplay.value = getProfileAddress()
-    ppPassword.value = ''
-    ppAmountInput.value = grandTotal.value.toFixed(2)
-    ppStep.value = 1
-    showPaypalModal.value = true
+    showPaypalModal.value = true;
+    isPaypalLoading.value = true;
+    paypalError.value = '';
+
+    setTimeout(async () => {
+      try {
+        // NOTA: Se está usando el client-id 'test' para poder cargar y probar la ventana de PayPal (modo simulación).
+        // Cuando tengas tu cuenta Sandbox configurada, reemplaza 'test' por tu verdadero Client ID,
+        // Y colócalo también en el archivo .env del backend.
+        const paypal = await loadScript({ 'client-id': 'AWsZbPR2mhlcQ-MVzlChy0lNklJP1KBGYaMM3u9jE6znxCv0E5j-WHGI1IfWWjAubNgdqRWswKcO42sj', currency: 'USD' });
+        const container = document.getElementById('paypal-button-container');
+        if (container) container.innerHTML = '';
+        
+        await paypal.Buttons({
+          createOrder: async () => {
+            const res = await fetch('http://localhost:3001/api/paypal/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ amount: grandTotal.value })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            return data.orderID;
+          },
+          onApprove: async (data, actions) => {
+            const res = await fetch('http://localhost:3001/api/paypal/capture-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderID: data.orderID })
+            });
+            const captureData = await res.json();
+            if (!captureData.success) throw new Error(captureData.error);
+            
+            const clientInfo = {
+              name: getProfileName(),
+              email: localStorage.getItem(getUk('profile_email')) || captureData.captureData.payer?.email_address || 'Comprador PayPal',
+              phone: localStorage.getItem(getUk('profile_phone')) || '',
+              address: getProfileAddress(),
+            };
+
+            ordersStore.placeOrder({
+              clientInfo,
+              items: cartStore.items.map(i => ({ ...i.product, quantity: i.quantity, lineTotal: cartStore.getLineTotal(i) })),
+              paymentMethod: 'paypal',
+              total: orderTotal.value, 
+              initialPayment: grandTotal.value, 
+              referenceNumber: data.orderID,
+              concept: 'Pago Web PayPal Sandbox',
+              shippingCost: shippingCost.value
+            });
+
+            cartStore.clearCart();
+            showPaypalModal.value = false;
+            router.push('/perfil');
+          },
+          onError: (err) => {
+            console.error('PayPal Buttons error:', err);
+            paypalError.value = 'Ha ocurrido un error al procesar el pago con PayPal.';
+          }
+        }).render('#paypal-button-container');
+      } catch (err) {
+        console.error('Error loading PayPal:', err);
+        paypalError.value = 'Error al cargar PayPal: ' + err.message;
+      } finally {
+        isPaypalLoading.value = false;
+      }
+    }, 100);
+
   } else {
     router.push('/pago-movil')
-  }
-}
-
-function ppNextStep1() {
-  if (!ppEmailInput.value || !ppPassword.value) return;
-  initPaypalBalance() // refresh balance just in case
-  isAddingCard.value = false
-  ppStep.value = 2;
-}
-
-function saveNewCard() {
-  if(newCard.value.num.length < 10) return
-  // Save custom card
-  addedCard.value = {
-    label: `${newCard.value.type.toUpperCase()} **** ${newCard.value.num.slice(-4)} (Añadida)`,
-    val: 'custom'
-  }
-  ppSelectedCard.value = 'custom'
-  isAddingCard.value = false
-  newCard.value = { num: '', exp: '', cvc: '', type: 'visa' }
-}
-
-function ppProcessPayment() {
-  const amountToPay = parseFloat(ppAmountInput.value)
-  const clientInfo = {
-    name: ppProfileNameDisplay.value,
-    email: ppEmailInput.value,
-    phone: localStorage.getItem(getUk('profile_phone')) || '',
-    address: ppProfileAddressDisplay.value,
-  }
-
-  // Si uso paypal directo y tiene fondos
-  if (ppSelectedCard.value === 'paypal_balance') {
-    if (paypalBalance.value >= amountToPay) {
-      let b = paypalBalance.value - amountToPay
-      localStorage.setItem(getUk('paypal_balance'), b.toFixed(2))
-    }
-  }
-
-  ppRefNum.value = 'PAY-SIM-' + Math.floor(100000000 + Math.random() * 900000000)
-  
-  ordersStore.placeOrder({
-    clientInfo,
-    items: cartStore.items.map(i => ({ ...i.product, quantity: i.quantity, lineTotal: cartStore.getLineTotal(i) })),
-    paymentMethod: 'paypal',
-    total: orderTotal.value, 
-    initialPayment: parseFloat(ppAmountInput.value),
-    referenceNumber: ppRefNum.value,
-    concept: 'Pago Web PayPal - ' + (ppSelectedCard.value === 'paypal_balance' ? 'Saldo Paypal' : ppSelectedCard.value === 'custom' ? 'Tarjeta Extra' : ppSelectedCard.value),
-    shippingCost: shippingCost.value
-  })
-
-  cartStore.clearCart()
-  ppStep.value = 3
-}
-
-function ppClose() {
-  showPaypalModal.value = false
-  if (ppStep.value === 3) {
-    router.push('/perfil')
   }
 }
 </script>
@@ -369,6 +386,7 @@ function ppClose() {
           <div class="summary-divider"></div>
 
           <div class="s-row"><span>Subtotal</span><div class="s-amount"><span>${{ subtotal.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(subtotal) }}</small></div></div>
+          <div class="s-row" v-if="discountAmount > 0"><span style="color:#2e7d32; font-weight:700">Descuento (Cupón)</span><div class="s-amount"><span style="color:#2e7d32; font-weight:700">-${{ discountAmount.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(discountAmount) }}</small></div></div>
           <div class="s-row"><span>Envío Estimado</span><div class="s-amount"><span>${{ shippingCost.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(shippingCost) }}</small></div></div>
           <div class="s-row s-bold"><span>Total Orden</span><div class="s-amount"><span>${{ orderTotal.toFixed(2) }}</span><small v-if="tasaBCV">{{ toBS(orderTotal) }}</small></div></div>
           <div class="s-row s-debt" v-if="debt > 0">
@@ -473,134 +491,24 @@ function ppClose() {
       </aside>
     </div>
 
-    <!-- ─── PayPal Modal (Overlays everything) ─── -->
+    <!-- ─── Real PayPal Modal (Overlays everything) ─── -->
     <div v-if="showPaypalModal" class="paypal-modal-overlay">
       <div class="paypal-modal-box">
-        
         <div class="pp-header">
           <div class="pp-logo"><span class="pp-blue">Pay</span><span class="pp-dark">Pal</span></div>
-          <button v-if="ppStep < 3" class="pp-cancel-btn" @click="ppClose">Cancelar y Volver al Carrito</button>
-          <button v-else class="pp-cancel-btn" @click="ppClose">Cerrar</button>
+          <button class="pp-cancel-btn" @click="showPaypalModal = false">Cancelar</button>
         </div>
-
         <div class="pp-body">
-          <!-- STEP 1 -->
-          <div v-if="ppStep === 1" class="pp-step-1">
-            <h3 class="pp-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Confirmación de Pago PayPal - Paso 1: Inicio de Sesión</h3>
-            
-            <div class="pp-total-row">
-              <span class="pp-total-label">Monto a Pagar: </span>
-              <input type="number" step="0.01" min="0" v-model="ppAmountInput" class="pp-amount-input" title="Puedes editar el monto si deseas hacer un abono parcial"/>
-              <span>USD</span>
-            </div>
-            
-            <div class="pp-hr"></div>
-
-            <div class="pp-form">
-              <!-- Si ya tiene email perfilado lo mostramos arriba limpio -->
-              <div v-if="ppEmailInput" class="pp-user-display" style="text-align:center; font-size:1rem; font-weight:700; margin-bottom: 0.5rem; color: #2c2e2f;">
-                {{ ppEmailInput }}
-              </div>
-              <input v-else v-model="ppEmailInput" type="email" placeholder="Correo electrónico o número de celular" class="pp-input" />
-              
-              <input v-model="ppPassword" type="password" placeholder="Contraseña" class="pp-input" />
-              <button class="pp-main-btn" @click="ppNextStep1">Iniciar sesión</button>
-            </div>
-            <div class="pp-links">
-              <a href="#">Pagar con tarjeta de crédito/débito (como invitado)</a>
-              <a href="#">Crear cuenta</a>
-            </div>
-          </div>
-
-          <!-- STEP 2 -->
-          <div v-if="ppStep === 2" class="pp-step-2">
-            <h3 class="pp-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Confirmación de Pago PayPal - Paso 2: Selección de Método</h3>
-            
-            <div class="pp-total-display">$ {{ Number(ppAmountInput).toFixed(2) }} USD</div>
-            
-            <div class="pp-info-line"><strong>Enviar pago a:</strong> Dist. B-DEL MAR 3011</div>
-            
-            <div class="pp-methods-title">Pagar con:</div>
-            <div class="pp-methods-list">
-              <label class="pp-method-row">
-                <input type="radio" v-model="ppSelectedCard" value="visa"> 
-                <span><strong style="color:#1a1f71">VISA</strong> Visa **** 1234 (Crédito) - Predeterminada</span>
-              </label>
-              <label class="pp-method-row">
-                <input type="radio" v-model="ppSelectedCard" value="mastercard"> 
-                <span><strong style="color:#eb001b">MC</strong> Mastercard **** 5678 (Débito)</span>
-              </label>
-              <label class="pp-method-row" v-if="addedCard">
-                <input type="radio" v-model="ppSelectedCard" value="custom"> 
-                <span><strong style="color:#222">NUEVA</strong> {{ addedCard.label }}</span>
-              </label>
-              <label class="pp-method-row" :class="{ 'opacity-60': paypalBalance < ppAmountInput }">
-                <input type="radio" v-model="ppSelectedCard" value="paypal_balance" :disabled="paypalBalance < ppAmountInput"> 
-                <span>
-                  <strong>PayPal</strong> Saldo de PayPal (${{ paypalBalance.toFixed(2) }})<br>
-                  <small v-if="paypalBalance < ppAmountInput" class="text-danger">
-                    (Insuficiente: Falta ${{ (ppAmountInput - paypalBalance).toFixed(2) }})
-                  </small>
-                </span>
-              </label>
-            </div>
-
-            <!-- Add Card Form -->
-            <div v-if="isAddingCard" class="pp-add-card-form">
-              <h4 style="margin:0 0 0.5rem; font-size: 0.9rem; color: #555">Detalles de la tarjeta</h4>
-              <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem">
-                <select v-model="newCard.type" class="pp-input" style="flex:1">
-                  <option value="visa">Visa</option>
-                  <option value="mastercard">Mastercard</option>
-                  <option value="amex">Amex</option>
-                </select>
-              </div>
-              <input type="text" v-model="newCard.num" placeholder="Número de tarjeta (ej. 1234....)" class="pp-input" style="width:100%; margin-bottom:0.5rem" autocomplete="off" name="mock-card-num-fake" />
-              <div style="display:flex; gap:0.5rem; margin-bottom:1rem">
-                <input type="text" v-model="newCard.exp" placeholder="MM/AA" class="pp-input" style="width:50%" autocomplete="off" name="mock-card-exp-fake" />
-                <input type="password" v-model="newCard.cvc" placeholder="CVC" class="pp-input" style="width:50%" autocomplete="new-password" name="mock-card-cvc-fake" />
-              </div>
-              <div style="display:flex; gap:0.5rem; margin-bottom: 1.5rem">
-                <button class="pp-main-btn" style="flex:1; margin-top:0" @click="saveNewCard">Guardar Tarjeta</button>
-                <button class="pp-cancel-btn" style="flex:1; padding: 0.85rem;" @click="isAddingCard = false">Cancelar</button>
-              </div>
-            </div>
-            <button v-else class="pp-add-card-btn" @click="isAddingCard = true">Añadir tarjeta de débito o crédito</button>
-            
-            <div class="pp-shipping-info">
-              <strong>Enviar a:</strong> {{ ppProfileNameDisplay }}, <br/>
-              <span class="pp-address-text">{{ ppProfileAddressDisplay }}</span>
-              <a href="#" class="pp-link-small">[Cambiar]</a>
-            </div>
-
-            <button class="pp-main-btn" @click="ppProcessPayment">Pagar ahora $ {{ Number(ppAmountInput).toFixed(2) }} USD</button>
-          </div>
-
-          <!-- STEP 3 -->
-          <div v-if="ppStep === 3" class="pp-step-3">
-            <h3 class="pp-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Paso 3: Pago Confirmado y Orden Procesada</h3>
-            
-            <div class="pp-success-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            </div>
-            <h2 class="pp-success-title">¡Su Pago de PayPal ha sido Exitoso!</h2>
-            <div class="pp-success-amount">Monto Pagado: $ {{ Number(ppAmountInput).toFixed(2) }} USD</div>
-            
-            <div class="pp-receipt-details">
-              <p><strong>Número de Referencia de PayPal:</strong><br/>{{ ppRefNum }}</p>
-              <p><strong>Método de Pago:</strong> {{ ppSelectedCard === 'visa' ? 'Visa **** 1234' : ppSelectedCard === 'mastercard' ? 'Mastercard **** 5678' : ppSelectedCard === 'paypal_balance' ? 'Saldo de PayPal' : (addedCard ? addedCard.label : 'Tarjeta Extra') }}</p>
-              
-              <p v-if="Number(ppAmountInput) >= grandTotal">Su saldo de deuda activa ha sido saldado por completo.</p>
-              <p v-else>Su abono ha sido registrado en el sistema correctamente.</p>
-              <p>Se ha enviado un correo de confirmación a <strong>{{ ppEmailInput || ppProfileNameDisplay }}</strong></p>
-            </div>
-
-            <button class="pp-success-btn" @click="ppClose">Ver Detalles de la Orden Final</button>
-          </div>
-
+          <h3 class="pp-title">Pagar pedido de ${{ grandTotal.toFixed(2) }}</h3>
+          <p class="paypal-desc" style="margin-bottom: 1.5rem">Inicia sesión en la ventana emergente oficial y segura de PayPal para autorizar este pago.</p>
+          
+          <div v-if="isPaypalLoading" class="pp-loading">Cargando módulos de PayPal...</div>
+          <div v-if="paypalError" class="paypal-error">{{ paypalError }}</div>
+          
+          <div id="paypal-button-container" style="min-height: 150px; background: transparent;"></div>
         </div>
         <div class="pp-footer">
-          *Plataforma de pago online encriptada de forma segura.*
+          *Plataforma de pago online encriptada de forma segura mediante PayPal SDK.*
         </div>
       </div>
     </div>
@@ -682,30 +590,9 @@ function ppClose() {
 .pp-links a { color: #0079C1; text-decoration: none; }
 .pp-links a:hover { text-decoration: underline; }
 
-/* Step 2 specific */
-.pp-total-display { font-size: 1.5rem; font-weight: 400; text-align: center; margin: 1rem 0; }
-.pp-info-line { text-align: center; font-size: 0.95rem; margin-bottom: 1.5rem; }
-.pp-methods-title { font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem; }
-.pp-methods-list { border-top: 1px solid #eaebec; margin-bottom: 1rem; }
-.pp-method-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid #eaebec; cursor: pointer; font-size: 0.9rem; }
-.pp-method-row input { transform: scale(1.2); }
-.opacity-60 { opacity: 0.5; cursor: not-allowed; }
-.pp-add-card-btn { background: #f5f7fa; border: 1px solid #eaebec; border-radius: 20px; width: 100%; padding: 0.6rem; font-weight: 600; color: #0079C1; cursor: pointer; margin-bottom: 1.5rem; }
-
-.pp-shipping-info { background: #f5f7fa; padding: 1rem; border-radius: 8px; font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.4; position: relative; }
-.pp-address-text { color: #555; }
-.pp-link-small { position: absolute; top: 1rem; right: 1rem; font-size: 0.8rem; color: #0079C1; text-decoration: none; }
-
-/* Step 3 specific */
-.pp-success-icon { color: #28a745; text-align: center; margin-top: 1rem; }
-.pp-success-title { text-align: center; font-size: 1.25rem; font-weight: 700; margin: 0.5rem 0; }
-.pp-success-amount { text-align: center; font-size: 1.1rem; color: #555; margin-bottom: 1.5rem; }
-.pp-receipt-details { background: #f8f9fa; border-radius: 8px; padding: 1rem; font-size: 0.9rem; line-height: 1.5; color: #444; margin-bottom: 1.5rem; }
-.pp-receipt-details p { margin: 0.5rem 0; }
-.pp-success-btn { background: #17a2b8; color: #fff; border: none; border-radius: 20px; padding: 0.75rem; width: 100%; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s; }
-.pp-success-btn:hover { background: #138496; }
-
-.pp-footer { background: #fcfcfc; padding: 1rem; text-align: center; font-size: 0.75rem; color: #666; border-top: 1px solid #eaebec; }
+.pp-loading { font-size: 0.9rem; color: #666; text-align: center; margin-bottom: 1rem; }
+.paypal-desc { font-size: 0.9rem; color: #555; text-align: center; line-height: 1.4; }
+.paypal-error { font-size: 0.9rem; color: #c53030; background: #fff5f5; border: 1px solid #feb2b2; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; }
 
 @media (max-width: 900px) {
   .cart-layout { flex-direction: column; }

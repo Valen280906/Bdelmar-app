@@ -38,6 +38,11 @@ const routes = [
                 component: () => import('../views/admin/AdminPayments.vue'),
             },
             {
+                path: 'cupones',
+                name: 'AdminCupones',
+                component: () => import('../views/admin/AdminCoupons.vue'),
+            },
+            {
                 path: 'pagos/:clientId',
                 name: 'ClientPaymentDetail',
                 component: () => import('../views/admin/ClientPaymentsDetail.vue'),

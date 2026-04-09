@@ -27,6 +27,20 @@ CREATE TABLE IF NOT EXISTS product_combos (
 -- Sembrar un combo base si no hay nada
 INSERT IGNORE INTO combos (id, name, unit, price) VALUES (1, 'Combo Primaveral', '10 Kilos', 50.00);
 
+-- Crear tabla de cupones
+CREATE TABLE IF NOT EXISTS coupons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) NULL,
+    discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+    discount_value DECIMAL(10,2) NOT NULL,
+    min_purchase DECIMAL(10,2) DEFAULT 0.00,
+    max_uses INT DEFAULT 0,
+    uses_count INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Ignorando los atributos planos antiguos (Si no los usaste o fallaron antes, esto no romperá nada)
 
 -- Restaurar modo seguro
