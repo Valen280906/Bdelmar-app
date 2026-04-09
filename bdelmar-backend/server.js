@@ -409,16 +409,9 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 // GET /api/combos → Lista de combos
 app.get('/api/combos', async (req, res) => {
-  const { product_id } = req.query
   try {
-    let query = 'SELECT * FROM combos WHERE product_id IS NULL '
-    let params = []
-    if (product_id) {
-      query += 'OR product_id = ? '
-      params.push(product_id)
-    }
-    query += 'ORDER BY id ASC'
-    const [rows] = await pool.query(query, params)
+    const query = 'SELECT * FROM combos ORDER BY id ASC'
+    const [rows] = await pool.query(query)
     res.json({ success: true, data: rows })
   } catch (err) {
     console.error('GET /api/combos error:', err.message)
@@ -428,13 +421,13 @@ app.get('/api/combos', async (req, res) => {
 
 // POST /api/combos → Crear combo
 app.post('/api/combos', async (req, res) => {
-  const { name, unit, price, product_id } = req.body
+  const { name, unit, price } = req.body
   if (!name || !unit || price == null) return res.status(400).json({ success: false, error: 'Datos incompletos' })
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO combos (name, unit, price, product_id) VALUES (?, ?, ?, ?)',
-      [name, unit, price, product_id || null]
+      'INSERT INTO combos (name, unit, price) VALUES (?, ?, ?)',
+      [name, unit, price]
     )
     res.json({ success: true, id: result.insertId })
   } catch (err) {
@@ -457,6 +450,7 @@ app.get('/api/products', async (req, res) => {
       p.combos = relations.filter(r => r.product_id === p.id).map(r => ({
         id: r.id, name: r.name, unit: r.unit, price: r.price
       }))
+      p.stock = Number(p.stock) || 0
       return p
     })
 
@@ -469,25 +463,21 @@ app.get('/api/products', async (req, res) => {
 
 // POST /api/products → Crear un producto
 app.post('/api/products', async (req, res) => {
-  const { name, description, category, badge, image, basePrice, selectedCombos, barcode } = req.body
+  const { name, description, category, badge, image, basePrice, selectedCombos, barcode, stock } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
 
   const finalBarcode = 'BDM-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase()
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO products (name, description, category, badge, image, basePrice, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, description, category || '', badge || '', image || '', basePrice || 0, finalBarcode]
+      'INSERT INTO products (name, description, category, badge, image, basePrice, barcode, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, description, category || '', badge || '', image || '', basePrice || 0, finalBarcode, stock || 0]
     )
     const newId = result.insertId
 
     if (selectedCombos && Array.isArray(selectedCombos) && selectedCombos.length > 0) {
       const values = selectedCombos.slice(0, 2).map(cid => [newId, cid])
       await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
-
-      // Update combos to claim them if they were created before product existed
-      const comboIds = selectedCombos.slice(0, 2)
-      await pool.query('UPDATE combos SET product_id = ? WHERE id IN (?) AND product_id IS NULL', [newId, comboIds])
     }
 
     res.json({ success: true, message: 'Producto creado exitosamente', id: newId })
@@ -500,7 +490,7 @@ app.post('/api/products', async (req, res) => {
 // PUT /api/products/:id → Actualizar producto
 app.put('/api/products/:id', async (req, res) => {
   const { id } = req.params
-  const { name, description, category, badge, image, basePrice, selectedCombos, barcode } = req.body
+  const { name, description, category, badge, image, basePrice, selectedCombos, barcode, stock } = req.body
   if (!name) return res.status(400).json({ success: false, error: 'El nombre es requerido' })
 
   const finalBarcode = (barcode && barcode.trim() !== '')
@@ -509,8 +499,8 @@ app.put('/api/products/:id', async (req, res) => {
 
   try {
     await pool.query(
-      'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, barcode = ?, updated_at = NOW() WHERE id = ?',
-      [name, description, category, badge, image, basePrice, finalBarcode, id]
+      'UPDATE products SET name = ?, description = ?, category = ?, badge = ?, image = ?, basePrice = ?, barcode = ?, stock = ?, updated_at = NOW() WHERE id = ?',
+      [name, description, category, badge, image, basePrice, finalBarcode, stock || 0, id]
     )
 
     await pool.query('DELETE FROM product_combos WHERE product_id = ?', [id])
@@ -518,9 +508,6 @@ app.put('/api/products/:id', async (req, res) => {
       const limitCombos = selectedCombos.slice(0, 2)
       const values = limitCombos.map(cid => [id, cid])
       await pool.query('INSERT INTO product_combos (product_id, combo_id) VALUES ?', [values])
-
-      // Claim any newly created combos for this product
-      await pool.query('UPDATE combos SET product_id = ? WHERE id IN (?) AND product_id IS NULL', [id, limitCombos])
     }
 
     res.json({ success: true, message: 'Producto actualizado' })
@@ -781,14 +768,36 @@ app.post('/api/coupons/validate', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Este cupón solo es válido en días específicos' })
     }
 
-    // Verificar que el usuario no lo haya usado ya (si se proporciona user_id)
+    // Verificar uso por usuario (UNO por usuario, sin excepción)
     if (user_id) {
       const [used] = await pool.query(
-        'SELECT is_used FROM user_coupons WHERE user_id = ? AND coupon_id = ? LIMIT 1',
+        'SELECT id, is_used FROM user_coupons WHERE user_id = ? AND coupon_id = ? LIMIT 1',
         [user_id, coupon.id]
       )
-      if (used.length > 0 && used[0].is_used)
-        return res.status(400).json({ success: false, error: 'Ya usaste este cupón anteriormente' })
+      if (used.length > 0) {
+        // El usuario ya tiene este cupón registrado (ya lo usó o está reservado)
+        if (used[0].is_used) {
+          return res.status(400).json({ success: false, error: 'Ya usaste este cupón anteriormente' })
+        }
+        // Si está reservado (is_used = FALSE) → ya fue aplicado en esta sesión u otra
+        // Lo rechazamos para garantizar uso único
+        return res.status(400).json({ success: false, error: 'Este cupón ya fue aplicado a tu cuenta' })
+      }
+
+      // Si el usuario no tiene registro todavía → RESERVAR el cupón para evitar doble uso
+      // Se marca como no usado (reservado). Se confirma al completar el pago.
+      try {
+        await pool.query(
+          'INSERT INTO user_coupons (user_id, coupon_id, is_used) VALUES (?, ?, FALSE)',
+          [user_id, coupon.id]
+        )
+      } catch (insertErr) {
+        // Si DUPLICATE KEY: otro proceso ya insertó, rechazar
+        if (insertErr.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ success: false, error: 'Este cupón ya fue aplicado a tu cuenta' })
+        }
+        // Otros errores: continuar (no bloquear por error de sistema)
+      }
     }
 
     // Para promo_code: verificar max_uses global

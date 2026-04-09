@@ -13,12 +13,12 @@ SET @OLD_SQL_SAFE_UPDATES=@@SQL_SAFE_UPDATES, SQL_SAFE_UPDATES=0;
 -- Primero eliminar la tabla vieja si existe (o agregar columnas si ya existe)
 -- Opción segura: agregar columnas nuevas si no existen
 
-ALTER TABLE coupons
-  ADD COLUMN coupon_category VARCHAR(20) NOT NULL DEFAULT 'promo_code' AFTER code,
-  ADD COLUMN discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage' AFTER value,
-  ADD COLUMN description TEXT NULL AFTER discount_type,
-  ADD COLUMN special_days JSON NULL COMMENT 'Array de dias: [0=Dom,1=Lun,...,6=Sab]' AFTER description,
-  ADD COLUMN required_purchases INT NOT NULL DEFAULT 3 COMMENT 'Para tipo purchase_count: cuantas compras del mes' AFTER special_days;
+-- ALTER TABLE coupons
+--   ADD COLUMN coupon_category VARCHAR(20) NOT NULL DEFAULT 'promo_code' AFTER code,
+--   ADD COLUMN discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage' AFTER value,
+--   ADD COLUMN description TEXT NULL AFTER discount_type,
+--   ADD COLUMN special_days JSON NULL COMMENT 'Array de dias: [0=Dom,1=Lun,...,6=Sab]' AFTER description,
+--   ADD COLUMN required_purchases INT NOT NULL DEFAULT 3 COMMENT 'Para tipo purchase_count: cuantas compras del mes' AFTER special_days;
 
 -- Renombrar type a old_type si existe (puede dar error si ya lo renombramos, ignorar)
 -- ALTER TABLE coupons CHANGE COLUMN type old_type VARCHAR(20) NULL;
@@ -50,6 +50,12 @@ CREATE TABLE IF NOT EXISTS user_purchase_log (
     purchased_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- ─── STOCK PARA PRODUCTOS ────────────────────────────────────────────────────
+-- Agregar columna de stock disponible en kilos al catálogo de productos
+ALTER TABLE products
+  ADD COLUMN stock DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Stock disponible en kilogramos. Si es 0, el producto se considera sin límite de stock configurado.';
 
 -- Restaurar modo seguro
 SET SQL_SAFE_UPDATES=@OLD_SQL_SAFE_UPDATES;

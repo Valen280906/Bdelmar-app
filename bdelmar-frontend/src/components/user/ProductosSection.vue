@@ -34,6 +34,7 @@ const fetchProducts = async () => {
         description: dbProd.description,
         image: getImageUrl(dbProd.image),
         basePrice: dbProd.basePrice,
+        stock: dbProd.stock,
         combos: dbProd.combos || []
       }))
     }
@@ -154,28 +155,30 @@ const breakpoints = {
 
 /* Fix del carrusel para ProductCard interna */
 .carousel-card-wrapper {
-  padding: 15px;
+  padding: 10px;
   height: 100%;
   width: 100%;
   display: flex;
 }
 :deep(.product-card) {
-  /* Forzamos a apilarse verticalmente dentro del carrusel para mantener espacio */
-  flex-direction: column !important; 
   margin: 0;
   width: 100%;
-  height: 100%;
+  /* No forzamos flex-direction para respetar el layout horizontal interno */
 }
 :deep(.product-visual) {
   width: 100% !important;
-  min-height: 220px;
+  min-height: 180px;
 }
 :deep(.product-image) {
-  max-height: 200px !important;
+  max-height: 160px !important;
 }
 :deep(.product-details) {
   width: 100% !important;
-  padding: 1.5rem !important;
+  padding: 1rem !important;
+}
+:deep(.details-horizontal) {
+  /* Permitir que el layout interno funcione sin restricciones */
+  align-items: stretch;
 }
 
 /* CTA */

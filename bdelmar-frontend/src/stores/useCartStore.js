@@ -48,9 +48,19 @@ export const useCartStore = defineStore('cart', () => {
   function addItem(product, quantity = 1) {
     const existing = items.value.find(i => i.product.id === product.id)
     if (existing) {
-      existing.quantity += quantity
+      let newQty = existing.quantity + quantity
+      const stock = Number(product.stock) || 0
+      if (stock > 0 && newQty > stock) {
+        newQty = stock
+      }
+      existing.quantity = newQty
     } else {
-      items.value.push({ product, quantity })
+      let limitQty = quantity
+      const stock = Number(product.stock) || 0
+      if (stock > 0 && limitQty > stock) {
+        limitQty = stock
+      }
+      items.value.push({ product, quantity: limitQty })
     }
     saveToStorage()
   }
@@ -62,7 +72,13 @@ export const useCartStore = defineStore('cart', () => {
 
   function updateQuantity(index, quantity) {
     if (quantity < 1) return removeItem(index)
-    items.value[index].quantity = quantity
+    let newQty = quantity
+    const item = items.value[index]
+    const stock = Number(item.product.stock) || 0
+    if (stock > 0 && newQty > stock) {
+      newQty = stock
+    }
+    item.quantity = newQty
     saveToStorage()
   }
 

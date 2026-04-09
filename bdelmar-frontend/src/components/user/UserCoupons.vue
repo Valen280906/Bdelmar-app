@@ -128,118 +128,120 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- ── CUPONES DE DÍA ESPECIAL ───────────────────────────── -->
-    <div v-if="todayCoupons.length > 0" class="uc-group">
-      <div class="group-label day-label">
-        <span class="label-dot day"></span>
-        🗓️ ¡Hoy es tu día de descuento!
-      </div>
-      <div class="cards-row">
-        <div class="uc-card day-card" v-for="c in todayCoupons" :key="c.id">
-          <div class="card-glow day-glow"></div>
-          <div class="card-inner">
-            <div class="card-badge-wrap">
-              <span class="today-badge">HOY · {{ DAY_NAMES[today] }}</span>
-            </div>
-            <div class="card-discount">
-              <span class="discount-num">{{ discountLabel(c) }}</span>
-              <span class="discount-off">DE DCTO.</span>
-            </div>
-            <div class="card-divider">
-              <div class="divider-dot"></div><div class="divider-line"></div><div class="divider-dot"></div>
-            </div>
-            <div class="card-bottom">
-              <p class="card-desc">{{ c.description || 'Descuento especial aplicado automáticamente' }}</p>
-              <div class="card-valid-days">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Válido: {{ daysLabel(c.special_days) }}
+    <div class="uc-main-layout">
+      <!-- ── CUPONES DE DÍA ESPECIAL ───────────────────────────── -->
+      <div v-if="todayCoupons.length > 0" class="uc-group">
+        <div class="group-label day-label">
+          <span class="label-dot day"></span>
+          🗓️ ¡Hoy es tu día de descuento!
+        </div>
+        <div class="cards-row">
+          <div class="uc-card day-card" v-for="c in todayCoupons" :key="c.id">
+            <div class="card-glow day-glow"></div>
+            <div class="card-inner">
+              <div class="card-badge-wrap">
+                <span class="today-badge">HOY · {{ DAY_NAMES[today] }}</span>
               </div>
-              <div class="auto-chip">✓ Se aplica automáticamente en el checkout</div>
+              <div class="card-discount">
+                <span class="discount-num">{{ discountLabel(c) }}</span>
+                <span class="discount-off">DE DCTO.</span>
+              </div>
+              <div class="card-divider">
+                <div class="divider-dot"></div><div class="divider-line"></div><div class="divider-dot"></div>
+              </div>
+              <div class="card-bottom">
+                <p class="card-desc">{{ c.description || 'Descuento especial aplicado automáticamente' }}</p>
+                <div class="card-valid-days">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Válido: {{ daysLabel(c.special_days) }}
+                </div>
+                <div class="auto-chip">✓ Se aplica automáticamente en el checkout</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ── CUPONES DE ACUMULACIÓN ─────────────────────────────── -->
-    <div v-if="purchaseCoupons.length > 0" class="uc-group">
-      <div class="group-label count-label">
-        <span class="label-dot count"></span>
-        🛒 Programa de Fidelidad
-      </div>
-      <div class="cards-row">
-        <div class="uc-card count-card" v-for="c in purchaseCoupons" :key="c.id">
-          <div class="card-glow count-glow"></div>
-          <div class="card-inner">
-            <div class="card-discount">
-              <span class="discount-num">{{ discountLabel(c) }}</span>
-              <span class="discount-off">DE DCTO.</span>
-            </div>
-            <p class="card-desc" style="margin: 0.5rem 0;">{{ c.description || 'Descuento por fidelidad' }}</p>
-            <div class="card-divider">
-              <div class="divider-dot"></div><div class="divider-line"></div><div class="divider-dot"></div>
-            </div>
-            <div class="progress-section">
-              <div class="progress-labels">
-                <span>Tu avance este mes</span>
-                <span class="progress-count"><strong>{{ monthlyPurchases }}</strong> / {{ c.required_purchases }} compras</span>
+      <!-- ── CUPONES DE ACUMULACIÓN ─────────────────────────────── -->
+      <div v-if="purchaseCoupons.length > 0" class="uc-group">
+        <div class="group-label count-label">
+          <span class="label-dot count"></span>
+          🛒 Programa de Fidelidad
+        </div>
+        <div class="cards-row">
+          <div class="uc-card count-card" v-for="c in purchaseCoupons" :key="c.id">
+            <div class="card-glow count-glow"></div>
+            <div class="card-inner">
+              <div class="card-discount">
+                <span class="discount-num">{{ discountLabel(c) }}</span>
+                <span class="discount-off">DE DCTO.</span>
               </div>
-              <div class="progress-bar-bg">
-                <div class="progress-bar-fill count-fill" :style="{ width: progressPct(c) + '%' }"></div>
+              <p class="card-desc" style="margin: 0.5rem 0;">{{ c.description || 'Descuento por fidelidad' }}</p>
+              <div class="card-divider">
+                <div class="divider-dot"></div><div class="divider-line"></div><div class="divider-dot"></div>
               </div>
-              <p v-if="progressPct(c) >= 100" class="progress-done">
-                🎉 ¡Meta alcanzada! Tu cupón ha sido liberado.
-              </p>
-              <p v-else class="progress-hint">
-                Te faltan {{ Math.max(0, c.required_purchases - monthlyPurchases) }} compra(s) para obtener tu descuento.
-              </p>
+              <div class="progress-section">
+                <div class="progress-labels">
+                  <span>Tu avance este mes</span>
+                  <span class="progress-count"><strong>{{ monthlyPurchases }}</strong> / {{ c.required_purchases }} compras</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill count-fill" :style="{ width: progressPct(c) + '%' }"></div>
+                </div>
+                <p v-if="progressPct(c) >= 100" class="progress-done">
+                  🎉 ¡Meta alcanzada! Tu cupón ha sido liberado.
+                </p>
+                <p v-else class="progress-hint">
+                  Te faltan {{ Math.max(0, c.required_purchases - monthlyPurchases) }} compra(s) para obtener tu descuento.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ── CUPONES DE CÓDIGO PROMO ────────────────────────────── -->
-    <div v-if="promoCoupons.length > 0" class="uc-group">
-      <div class="group-label promo-label">
-        <span class="label-dot promo"></span>
-        🎟️ Códigos Promocionales
-      </div>
-      <div class="cards-row">
-        <div
-          class="uc-card promo-card"
-          v-for="c in promoCoupons"
-          :key="c.id"
-          :class="{ 'card-used': userAlreadyHas(c) }"
-        >
-          <div class="card-glow promo-glow"></div>
-          <div class="card-inner">
-            <div class="card-discount">
-              <span class="discount-num">{{ discountLabel(c) }}</span>
-              <span class="discount-off">DE DCTO.</span>
+      <!-- ── CUPONES DE CÓDIGO PROMO ────────────────────────────── -->
+      <div v-if="promoCoupons.length > 0" class="uc-group">
+        <div class="group-label promo-label">
+          <span class="label-dot promo"></span>
+          🎟️ Códigos Promocionales
+        </div>
+        <div class="cards-row">
+          <div
+            class="uc-card promo-card"
+            v-for="c in promoCoupons"
+            :key="c.id"
+            :class="{ 'card-used': userAlreadyHas(c) }"
+          >
+            <div class="card-glow promo-glow"></div>
+            <div class="card-inner">
+              <div class="card-discount">
+                <span class="discount-num">{{ discountLabel(c) }}</span>
+                <span class="discount-off">DE DCTO.</span>
+              </div>
+              <p class="card-desc" style="margin: 0.5rem 0;">{{ c.description || 'Descuento especial' }}</p>
+              <div class="card-divider">
+                <div class="divider-dot"></div><div class="divider-line"></div><div class="divider-dot"></div>
+              </div>
+              <div class="code-block">
+                <code class="the-code">{{ c.code }}</code>
+                <button
+                  class="copy-btn"
+                  :class="{ copied: copiedCode === c.code }"
+                  @click="copyCode(c.code)"
+                  :disabled="userAlreadyHas(c)"
+                >
+                  <svg v-if="copiedCode !== c.code" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                  {{ copiedCode === c.code ? '¡Copiado!' : 'Copiar' }}
+                </button>
+              </div>
+              <div v-if="c.min_purchase > 0" class="min-purchase-note">
+                Compra mínima: ${{ c.min_purchase }}
+              </div>
+              <div v-if="userAlreadyHas(c)" class="used-overlay-msg">✓ Ya utilizaste este cupón</div>
+              <div v-else class="once-note">Solo puede usarse una vez por cuenta</div>
             </div>
-            <p class="card-desc" style="margin: 0.5rem 0;">{{ c.description || 'Descuento especial' }}</p>
-            <div class="card-divider">
-              <div class="divider-dot"></div><div class="divider-line"></div><div class="divider-dot"></div>
-            </div>
-            <div class="code-block">
-              <code class="the-code">{{ c.code }}</code>
-              <button
-                class="copy-btn"
-                :class="{ copied: copiedCode === c.code }"
-                @click="copyCode(c.code)"
-                :disabled="userAlreadyHas(c)"
-              >
-                <svg v-if="copiedCode !== c.code" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-                {{ copiedCode === c.code ? '¡Copiado!' : 'Copiar' }}
-              </button>
-            </div>
-            <div v-if="c.min_purchase > 0" class="min-purchase-note">
-              Compra mínima: ${{ c.min_purchase }}
-            </div>
-            <div v-if="userAlreadyHas(c)" class="used-overlay-msg">✓ Ya utilizaste este cupón</div>
-            <div v-else class="once-note">Solo puede usarse una vez por cuenta</div>
           </div>
         </div>
       </div>
@@ -273,8 +275,26 @@ onMounted(async () => {
 .uc-title { font-size: 1.6rem; font-weight: 800; margin: 0; color: var(--color-text-primary); }
 .uc-sub { font-size: 0.88rem; color: var(--color-text-secondary); margin: 0.2rem 0 0; }
 
+/* ── MAIN LAYOUT ── */
+.uc-main-layout {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 /* ── GROUPS ── */
-.uc-group { max-width: 1200px; margin: 0 auto 2.5rem; }
+.uc-group {
+  flex: 1;
+  min-width: 320px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
 
 .group-label {
   display: flex; align-items: center; gap: 0.5rem;
@@ -287,9 +307,10 @@ onMounted(async () => {
 .label-dot.promo { background: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
 
 .cards-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
+  flex: 1;
 }
 
 /* ── CARD BASE ── */

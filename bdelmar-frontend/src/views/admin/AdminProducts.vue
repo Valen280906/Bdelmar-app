@@ -1,9 +1,46 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const products = ref([])
 const isLoading = ref(true)
 const isSaving = ref(false)
+
+// ─── DataTables State ──────────────────────────────────
+const searchQuery = ref('')
+const currentPage = ref(1)
+const itemsPerPage = 10
+
+const filteredProducts = computed(() => {
+  const q = searchQuery.value.toLowerCase()
+  if (!q) return products.value
+  return products.value.filter(p =>
+    (p.name || '').toLowerCase().includes(q) ||
+    (p.category || '').toLowerCase().includes(q) ||
+    (p.badge || '').toLowerCase().includes(q) ||
+    (p.barcode || '').toLowerCase().includes(q)
+  )
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredProducts.value.length / itemsPerPage)))
+
+const pagedProducts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredProducts.value.slice(start, start + itemsPerPage)
+})
+
+const pageNumbers = computed(() => {
+  const pages = []
+  for (let i = 1; i <= totalPages.value; i++) pages.push(i)
+  return pages
+})
+
+function setPage(n) {
+  if (n >= 1 && n <= totalPages.value) currentPage.value = n
+}
+
+// Reset page to 1 when search changes
+import { watch } from 'vue'
+watch(searchQuery, () => { currentPage.value = 1 })
 
 // Estado del formulario modal
 const showModal = ref(false)
@@ -28,8 +65,9 @@ const defaultForm = {
   category: 'Pescados',
   badge: '',
   barcode: '',
-  image: '', // Sin imagen por defecto para mostrar el Drag & Drop vacio
+  image: '',
   basePrice: 0.00,
+  stock: 0,
   selectedCombos: []
 }
 const form = ref({ ...defaultForm })
@@ -61,9 +99,7 @@ const saveCombo = async () => {
     const res = await fetch('http://localhost:3001/api/combos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...comboForm.value
-      })
+      body: JSON.stringify({ ...comboForm.value })
     })
     const json = await res.json()
     if (json.success) {
@@ -77,19 +113,16 @@ const saveCombo = async () => {
 
 const checkComboLimit = () => {
   if (form.value.selectedCombos && form.value.selectedCombos.length > 2) {
-    showAlert('Límite Alcanzado', 'Puedes seleccionar un máximo de 2 combos por producto para mantener limpia la interfaz del comprador.')
+    showAlert('Límite Alcanzado', 'Puedes seleccionar un máximo de 2 combos por producto.')
     form.value.selectedCombos.pop()
   }
 }
-// ---------------------------------------
 
 // Estado del drag & drop
 const fileInput = ref(null)
 const isDragOver = ref(false)
 const uploadLoading = ref(false)
 
-// Opciones de configuración
-import { computed } from 'vue'
 const defaultCategories = ['Pescados', 'Mariscos', 'Preparados', 'Otros']
 const dynamicCategories = computed(() => {
   const catSet = new Set(defaultCategories)
@@ -108,8 +141,8 @@ const fetchProducts = async () => {
     const json = await res.json()
     if (json.success) products.value = json.data
   } catch (error) {
-    console.error('Error crgando productos:', error)
-    showAlert('Error de Red', 'No se pudieron cargar los productos. Asegúrate de que el servidor de conexión esté activo.')
+    console.error('Error cargando productos:', error)
+    showAlert('Error de Red', 'No se pudieron cargar los productos. Asegúrate de que el servidor esté activo.')
   } finally {
     isLoading.value = false
   }
@@ -124,7 +157,11 @@ const openAddModal = () => {
 }
 
 const openEditModal = (product) => {
-  form.value = { ...product, selectedCombos: product.combos ? product.combos.map(c => c.id) : [] }
+  form.value = {
+    ...product,
+    stock: Number(product.stock) || 0,
+    selectedCombos: product.combos ? product.combos.map(c => c.id) : []
+  }
   modalTitle.value = 'Editar Producto'
   isEditing.value = true
   showModal.value = true
@@ -140,8 +177,8 @@ const saveProduct = async () => {
   isSaving.value = true
 
   const method = isEditing.value ? 'PUT' : 'POST'
-  const url = isEditing.value 
-    ? `http://localhost:3001/api/products/${form.value.id}` 
+  const url = isEditing.value
+    ? `http://localhost:3001/api/products/${form.value.id}`
     : 'http://localhost:3001/api/products'
 
   try {
@@ -159,7 +196,7 @@ const saveProduct = async () => {
     }
   } catch (error) {
     console.error('Error guardando producto:', error)
-    showAlert('Fallo Crítico', 'Hubo un problema de conexión grave al intentar transcribir tu producto al catálogo global.')
+    showAlert('Fallo Crítico', 'Hubo un problema de conexión grave al intentar guardar el producto.')
   } finally {
     isSaving.value = false
   }
@@ -207,7 +244,7 @@ const uploadFile = async (file) => {
   uploadLoading.value = true
   const formData = new FormData()
   formData.append('image', file)
-  
+
   try {
     const res = await fetch('http://localhost:3001/api/upload', {
       method: 'POST',
@@ -217,24 +254,21 @@ const uploadFile = async (file) => {
     if (json.success) {
       form.value.image = json.imageUrl
     } else {
-      showAlert('Error en Imagen', json.error || 'Hubo un error subiendo la imagen procesada.')
+      showAlert('Error en Imagen', json.error || 'Hubo un error subiendo la imagen.')
     }
   } catch(error) {
     console.error(error)
-    showAlert('Error de Subida', 'Fallo de interconexión subiendo la imagen al servidor remoto.')
+    showAlert('Error de Subida', 'Fallo de conexión subiendo la imagen al servidor.')
   } finally {
     uploadLoading.value = false
   }
 }
 
-// Cargar imagen en tiempo real para previsualizar miniatura
 const getImageUrl = (imgName) => {
   if (!imgName) return 'https://via.placeholder.com/150'
-  // Si viene del backend nuevo de archivos:
   if (imgName.startsWith('/uploads')) {
     return `http://localhost:3001${imgName}`
   }
-  // Si es un archivo local antiguo, aseguramos que tenga extensión si no la tiene
   try {
     let cleanName = imgName
     if (!cleanName.includes('.')) {
@@ -257,7 +291,7 @@ onMounted(() => {
     <header class="view-header">
       <div>
         <h1 class="view-title">Gestión de Catálogo</h1>
-        <p class="view-subtitle">Administra los pescados, mariscos y sus detalles de listado público</p>
+        <p class="view-subtitle">Administra pescados, mariscos y sus detalles de listado público</p>
       </div>
       <button class="btn-primary" @click="openAddModal">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -269,31 +303,51 @@ onMounted(() => {
     </header>
 
     <div class="table-container shadow-card">
-      <div v-if="isLoading" class="loading-state">
-        Cargando inventario...
+      <!-- DataTables Search Bar -->
+      <div class="dt-toolbar">
+        <div class="dt-search-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            class="dt-search"
+            v-model="searchQuery"
+            placeholder="Buscar por nombre, categoría, badge o SKU..."
+          />
+          <span v-if="searchQuery" class="dt-clear" @click="searchQuery = ''">×</span>
+        </div>
+        <span class="dt-count">
+          {{ filteredProducts.length }} de {{ products.length }} productos
+        </span>
       </div>
+
+      <div v-if="isLoading" class="loading-state">Cargando inventario...</div>
+
       <table v-else class="products-table">
         <thead>
           <tr>
             <th>Imagen</th>
-            <th>Nombre</th>
+            <th>Nombre / SKU</th>
             <th>Categoría</th>
             <th>Badge</th>
             <th>Precio/Kg</th>
+            <th>Stock (Kg)</th>
             <th class="text-right">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="products.length === 0">
-            <td colspan="6" class="text-center empty-state">No hay productos registrados en el sistema.</td>
+          <tr v-if="filteredProducts.length === 0">
+            <td colspan="7" class="text-center empty-state">
+              {{ searchQuery ? 'No se encontraron productos con ese criterio.' : 'No hay productos registrados en el sistema.' }}
+            </td>
           </tr>
-          <tr v-for="product in products" :key="product.id">
+          <tr v-for="product in pagedProducts" :key="product.id">
             <td class="col-image">
               <img :src="getImageUrl(product.image)" :alt="product.name" class="mini-thumb" @error="e => e.target.style.display='none'" />
             </td>
             <td class="col-name">
               <strong>{{ product.name }}</strong>
-              <div v-if="product.barcode" class="barcode-visual">*{{ product.barcode }}*</div>
+              <div v-if="product.barcode" class="barcode-text">{{ product.barcode }}</div>
             </td>
             <td>
               <span class="chip-category">{{ product.category }}</span>
@@ -304,6 +358,10 @@ onMounted(() => {
             </td>
             <td class="col-price">
               ${{ Number(product.basePrice).toFixed(2) }}
+            </td>
+            <td class="col-stock">
+              <span v-if="product.stock > 0" class="stock-value">{{ Number(product.stock).toFixed(1) }} kg</span>
+              <span v-else class="text-muted">—</span>
             </td>
             <td class="col-actions">
               <button class="btn-icon btn-edit" @click="openEditModal(product)" aria-label="Editar">
@@ -322,6 +380,25 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
+
+      <!-- Paginación DataTables -->
+      <div class="dt-footer" v-if="!isLoading && filteredProducts.length > itemsPerPage">
+        <span class="dt-info">
+          Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }}–{{ Math.min(currentPage * itemsPerPage, filteredProducts.length) }}
+          de {{ filteredProducts.length }}
+        </span>
+        <div class="dt-pagination">
+          <button class="dt-page-btn" @click="setPage(currentPage - 1)" :disabled="currentPage === 1">‹</button>
+          <button
+            v-for="n in pageNumbers"
+            :key="n"
+            class="dt-page-btn"
+            :class="{ active: n === currentPage }"
+            @click="setPage(n)"
+          >{{ n }}</button>
+          <button class="dt-page-btn" @click="setPage(currentPage + 1)" :disabled="currentPage === totalPages">›</button>
+        </div>
+      </div>
     </div>
 
     <!-- Modal Formulario Producto -->
@@ -331,10 +408,10 @@ onMounted(() => {
           <h3 class="modal-title">{{ modalTitle }}</h3>
           <button class="modal-close" @click="showModal = false">×</button>
         </div>
-        
+
         <form @submit.prevent="saveProduct" class="modal-body">
           <div class="modal-layout-grid">
-            
+
             <!-- Columna Izquierda: Detalles del Producto -->
             <div class="modal-col-left">
               <div class="form-row">
@@ -349,8 +426,18 @@ onMounted(() => {
                   <input type="text" :value="form.barcode || 'Sistema genera al guardar...'" disabled style="background: rgba(128,128,128,0.05); color: var(--color-text-secondary); cursor: not-allowed;" />
                 </div>
                 <div class="form-group flex-1">
-                  <label for="p-price">Precio Base ($)</label>
+                  <label for="p-price">Precio Base ($/Kg)</label>
                   <input type="number" step="0.01" min="0" id="p-price" v-model="form.basePrice" required />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="p-stock">
+                    Stock Disponible (Kg)
+                    <span class="label-hint">0 = sin límite configurado</span>
+                  </label>
+                  <input type="number" step="0.1" min="0" id="p-stock" v-model="form.stock" placeholder="Ej. 50.0" />
                 </div>
               </div>
 
@@ -385,12 +472,12 @@ onMounted(() => {
                     </div>
                   </label>
                 </div>
-                <small class="text-muted" style="margin-top: -0.2rem">Únicamente puedes marcar un máximo de 2 combinaciones dinámicas.</small>
+                <small class="text-muted" style="margin-top: -0.2rem">Máximo 2 combinaciones dinámicas por producto.</small>
               </div>
 
               <div class="form-group">
                 <label for="p-desc">Descripción Técnica y Detalles</label>
-                <textarea id="p-desc" v-model="form.description" rows="2" placeholder="Ingresa características de procedencia, sabor, o usos culinarios..."></textarea>
+                <textarea id="p-desc" v-model="form.description" rows="2" placeholder="Características de procedencia, sabor, o usos culinarios..."></textarea>
               </div>
             </div>
 
@@ -398,8 +485,8 @@ onMounted(() => {
             <div class="modal-col-right">
               <div class="form-group upload-group">
                 <label>Imagen del Producto</label>
-                <div 
-                  class="dropzone" 
+                <div
+                  class="dropzone"
                   :class="{ 'is-dragover': isDragOver }"
                   @dragover.prevent="isDragOver = true"
                   @dragleave.prevent="isDragOver = false"
@@ -419,11 +506,11 @@ onMounted(() => {
                       <polyline points="17 8 12 3 7 8"></polyline>
                       <line x1="12" y1="3" x2="12" y2="15"></line>
                     </svg>
-                    <p>Arrastra y suelta tu foto aquí<br/>o <span class="text-primary">haz click para buscar en tus carpetas</span></p>
+                    <p>Arrastra y suelta tu foto aquí<br/>o <span class="text-primary">haz click para buscar</span></p>
                   </div>
                   <input type="file" ref="fileInput" class="hidden-input" accept="image/*" @change="handleFileSelect" />
                 </div>
-                <small class="text-muted text-center" style="margin-top: 0.5rem">Soporta JPG, PNG. Las imágenes clásicas en código siguen funcionando.</small>
+                <small class="text-muted text-center" style="margin-top: 0.5rem">Soporta JPG, PNG.</small>
               </div>
             </div>
 
@@ -446,15 +533,13 @@ onMounted(() => {
           <h3 class="modal-title">Añadir Nuevo Combo</h3>
           <button class="modal-close" @click="showComboModal = false">×</button>
         </div>
-        
+
         <form @submit.prevent="saveCombo" class="modal-body">
           <div class="modal-layout-grid" style="gap: 1rem;">
-            
             <div class="form-group">
               <label for="c-name">Nombre del Combo</label>
               <input type="text" id="c-name" v-model="comboForm.name" required placeholder="Ej. Combo Familiar" />
             </div>
-
             <div class="form-row">
               <div class="form-group flex-1">
                 <label for="c-unit">Unidad (expresado en Kilos)</label>
@@ -465,7 +550,6 @@ onMounted(() => {
                 <input type="number" step="0.01" min="0" id="c-price" v-model="comboForm.price" required placeholder="Ej. 25.00" />
               </div>
             </div>
-
           </div>
 
           <div class="modal-footer">
@@ -475,7 +559,8 @@ onMounted(() => {
         </form>
       </div>
     </div>
-    <!-- Modal de Confirmación Estilizado -->
+
+    <!-- Modal de Confirmación -->
     <div class="modal-overlay" v-if="showConfirmModal" @click.self="showConfirmModal = false" style="z-index: 1100;">
       <div class="modal-content shadow-card confirm-dialog">
         <div class="modal-header confirm-header">
@@ -497,7 +582,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Modal de Alertas Estilizado -->
+    <!-- Modal de Alertas -->
     <div class="modal-overlay" v-if="alertModal.show" @click.self="alertModal.show = false" style="z-index: 1200;">
       <div class="modal-content shadow-card confirm-dialog" style="max-width: 400px; text-align: center;">
         <div class="modal-header" style="justify-content: center; padding-top: 1.5rem; border-bottom: none;">
@@ -525,7 +610,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
 
 .admin-products-view {
   padding: 2.5rem;
@@ -550,14 +634,72 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Tabla */
+/* ─── DataTables Toolbar ───────────────────────────────────── */
+.dt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(128,128,128,0.08);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dt-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 400px;
+  background: var(--color-bg-page);
+  border: 1px solid rgba(128,128,128,0.18);
+  border-radius: 8px;
+  padding: 0 0.75rem;
+  transition: border-color 0.2s;
+}
+.dt-search-wrap:focus-within { border-color: var(--color-primary); }
+.dt-search-wrap svg { color: var(--color-text-secondary); flex-shrink: 0; }
+
+.dt-search {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  padding: 0.6rem 0;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  width: 100%;
+}
+.dt-search::placeholder { color: var(--color-text-secondary); opacity: 0.6; }
+
+.dt-clear {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0.1rem 0.15rem;
+  border-radius: 50%;
+  transition: color 0.15s;
+}
+.dt-clear:hover { color: #e53935; }
+
+.dt-count {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* ─── Tabla ───────────────────────────────────────────────── */
 .table-container { overflow-x: auto; }
 .products-table {
   width: 100%;
   border-collapse: collapse;
 }
 .products-table th, .products-table td {
-  padding: 1rem 1.25rem;
+  padding: 0.9rem 1.25rem;
   text-align: left;
   border-bottom: 1px solid rgba(128,128,128,0.08);
   vertical-align: middle;
@@ -566,30 +708,37 @@ onMounted(() => {
   background: rgba(128,128,128,0.02);
   color: var(--color-text-secondary);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 .products-table tr:hover td {
   background: rgba(128,128,128,0.01);
 }
 
-.col-image { width: 70px; }
+.col-image { width: 60px; }
 .mini-thumb {
-  width: 48px; height: 48px; border-radius: 6px; object-fit: cover;
+  width: 44px; height: 44px; border-radius: 6px; object-fit: cover;
   border: 1px solid rgba(128,128,128,0.1);
 }
 
-.col-name strong { color: var(--color-primary); font-size: 0.95rem; }
-.barcode-visual {
-  font-family: 'Libre Barcode 39', cursive;
-  font-size: 2.8rem;
-  line-height: 0.8;
-  margin-top: 0.5rem;
-  color: var(--color-text-primary);
-  opacity: 0.9;
+.col-name strong { color: var(--color-primary); font-size: 0.92rem; display: block; }
+
+/* Barcode text simple (sin fuente de barras) */
+.barcode-text {
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+  margin-top: 0.2rem;
+  letter-spacing: 0.5px;
 }
+
 .col-price { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.col-stock { font-variant-numeric: tabular-nums; }
+.stock-value { font-weight: 600; color: #2e7d32; font-size: 0.88rem; }
+
 .text-right { text-align: right; }
 .text-center { text-align: center; }
 .text-muted { color: #888; font-size: 0.85rem;}
@@ -605,7 +754,57 @@ onMounted(() => {
 .empty-state { padding: 3rem; color: var(--color-text-secondary); }
 .loading-state { padding: 3rem; text-align: center; font-weight: 600; color: var(--color-primary); }
 
-/* Buttons */
+/* ─── DataTables Footer / Pagination ─────────────────────── */
+.dt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid rgba(128,128,128,0.08);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dt-info {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.dt-pagination {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.dt-page-btn {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid rgba(128,128,128,0.18);
+  background: var(--color-bg-page);
+  color: var(--color-text-secondary);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dt-page-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-page));
+}
+.dt-page-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.dt-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ─── Buttons ─────────────────────────────────────────────── */
 .btn-primary {
   display: inline-flex; align-items: center; gap: 0.5rem;
   background: var(--color-primary); color: white; border: none;
@@ -631,7 +830,7 @@ onMounted(() => {
 .btn-edit:hover { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
 .btn-delete:hover { border-color: #e53935; color: #e53935; background: rgba(229, 57, 53, 0.05); }
 
-/* Modal */
+/* ─── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
   display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
@@ -655,6 +854,14 @@ onMounted(() => {
 .flex-1 { flex: 1; min-width: 180px; }
 .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
 .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--color-text-secondary); }
+
+.label-hint {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+}
 
 /* Grid Responsive para Modal Desktop */
 @media (min-width: 768px) {
@@ -686,18 +893,19 @@ onMounted(() => {
   }
 }
 
-/* Forms */
+/* ─── Forms ───────────────────────────────────────────────── */
 input[type="text"], input[type="number"], select, textarea {
   width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(128,128,128,0.2);
   border-radius: 8px; background: var(--color-bg-page); color: var(--color-text-primary);
   font-family: inherit; font-size: 0.95rem; transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 input:focus, select:focus, textarea:focus {
   outline: none; border-color: var(--color-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
-/* Combos Checkboxes */
+/* ─── Combos Checkboxes ───────────────────────────────────── */
 .combo-checkboxes {
   display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto;
   border: 1px solid rgba(128,128,128,0.2); border-radius: 8px; padding: 0.5rem; background: rgba(128,128,128,0.015);
@@ -714,6 +922,7 @@ input:focus, select:focus, textarea:focus {
 .combo-n { font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary); }
 .combo-u { font-size: 0.75rem; color: var(--color-text-secondary); }
 
+/* ─── Dropzone ────────────────────────────────────────────── */
 .dropzone {
   border: 2px dashed rgba(128,128,128,0.3);
   border-radius: 8px;
@@ -724,6 +933,7 @@ input:focus, select:focus, textarea:focus {
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
+  min-height: 180px;
 }
 .dropzone.is-dragover {
   border-color: var(--color-primary);
@@ -740,9 +950,7 @@ input:focus, select:focus, textarea:focus {
   gap: 0.5rem;
   color: var(--color-text-secondary);
 }
-.drop-prompt svg {
-  color: var(--color-primary);
-}
+.drop-prompt svg { color: var(--color-primary); }
 .drop-prompt p { margin: 0; font-size: 0.9rem; line-height: 1.4; }
 .text-primary { color: var(--color-primary); font-weight: 600; }
 
@@ -767,9 +975,10 @@ input:focus, select:focus, textarea:focus {
   padding: 0.3rem 0.8rem; font-size: 0.75rem; font-weight: 700; cursor: pointer;
 }
 .btn-remove:hover { background: #feebeb; }
-.uploading-state { font-weight: 600; color: var(--color-primary); }
+.uploading-state { font-weight: 600; color: var(--color-primary); padding: 2rem 0; }
 .hidden-input { display: none !important; }
 
+/* ─── Modal Footer ────────────────────────────────────────── */
 .modal-footer {
   display: flex; justify-content: flex-end; gap: 1rem; margin-top: 0.5rem;
   padding-top: 1rem; border-top: 1px solid rgba(128,128,128,0.1);
@@ -782,4 +991,5 @@ input:focus, select:focus, textarea:focus {
 .text-danger { color: #e53935 !important; }
 .btn-danger-action { background-color: #e53935; }
 .btn-danger-action:hover { background-color: #c62828; }
+.text-center { text-align: center; }
 </style>

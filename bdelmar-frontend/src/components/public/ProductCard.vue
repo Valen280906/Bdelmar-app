@@ -54,6 +54,10 @@ function addToCart() {
  * Incrementa la cantidad de productos seleccionada
  */
 const incrementQuantity = () => {
+  const stock = Number(props.product.stock) || 0
+  if (stock > 0 && quantity.value >= stock) {
+    return
+  }
   quantity.value++
 }
 
@@ -216,76 +220,82 @@ onMounted(() => {
 
       <hr class="separator" />
 
-      <!-- Descripcion Tecnica -->
-      <section class="info-section">
-        <h3 class="section-title">PRODUCT INFO</h3>
-        <p class="section-text">{{ product.description }}</p>
-        <!-- Barcode removido de la vista de cliente para evitar bugs visuales -->
-        <div v-if="product.barcode" style="margin-top: 1rem; text-align: left;">
-          <span style="font-size: 0.65rem; color: #999; font-family: monospace;">Ref: {{ product.barcode }}</span>
-        </div>
-      </section>
+      <!-- Layout horizontal: Info izquierda | Cantidad derecha -->
+      <div class="details-horizontal">
 
-      <hr class="separator" />
-
-      <!-- Selector de Cantidad y Combo -->
-      <div class="quantity-combo-row">
-        <section class="quantity-section" @click.stop>
-          <h3 class="section-title">CANTIDAD</h3>
-          <div class="quantity-controls">
-            <button @click.stop="decrementQuantity" class="qty-btn" :disabled="quantity <= 1 || product.badge === 'Agotado'">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-            <span class="qty-display" :style="{ opacity: product.badge === 'Agotado' ? 0.5 : 1 }">{{ quantity }}</span>
-            <button @click.stop="incrementQuantity" class="qty-btn" :disabled="product.badge === 'Agotado'">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-        </section>
-
-        <!-- Combos vinculados -->
-        <section v-if="product.combos && product.combos.length > 0" class="combo-section" @click.stop>
-          <h3 class="combo-title">OFERTAS EN COMBO</h3>
-          <div class="combos-list">
-            <div v-for="c in product.combos" :key="c.id" class="combo-pill" title="Aplica a este producto">
-              <span class="combo-name">{{ c.name }}</span>
-              <span class="combo-desc">{{ c.unit }} x <strong>${{ Number(c.price).toFixed(2) }}</strong></span>
+        <!-- Columna izquierda: Descripcion e info -->
+        <div class="details-left">
+          <section class="info-section">
+            <h3 class="section-title">PRODUCT INFO</h3>
+            <p class="section-text">{{ product.description }}</p>
+            <div v-if="product.barcode" style="margin-top: 0.75rem;">
+              <span style="font-size: 0.65rem; color: #999; font-family: monospace;">Ref: {{ product.barcode }}</span>
             </div>
-          </div>
-        </section>
-      </div>
+          </section>
 
-      <hr class="separator" />
-
-      <!-- Accion Final y Precio -->
-      <footer class="details-footer" @click.stop>
-        <button class="add-to-cart-btn" :disabled="product.badge === 'Agotado'" :class="{ 'is-agotado': product.badge === 'Agotado', 'is-added': cartAdded }" @click.stop="addToCart">
-          <svg v-if="!cartAdded && product.badge !== 'Agotado'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="9" cy="21" r="1"></circle>
-            <circle cx="20" cy="21" r="1"></circle>
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-          </svg>
-          <svg v-else-if="cartAdded" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-          </svg>
-          <span class="btn-text">{{ product.badge === 'Agotado' ? 'AGOTADO' : cartAdded ? '¡Agregado!' : 'AGREGAR' }}</span>
-        </button>
-        <button class="fav-heart-btn" :class="{ active: favStore.isFavorite(product.id) }" @click.stop="favStore.toggle(product)" :title="favStore.isFavorite(product.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'">
-          <svg width="18" height="18" viewBox="0 0 24 24" :fill="favStore.isFavorite(product.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-          </svg>
-        </button>
-        <div class="price-display">
-          <span class="currency">$</span>{{ totalPrice }}
+          <!-- Combos vinculados -->
+          <section v-if="product.combos && product.combos.length > 0" class="combo-section" @click.stop style="margin-top: 0.75rem;">
+            <h3 class="combo-title">OFERTAS EN COMBO</h3>
+            <div class="combos-list">
+              <div v-for="c in product.combos" :key="c.id" class="combo-pill" title="Aplica a este producto">
+                <span class="combo-name">{{ c.name }}</span>
+                <span class="combo-desc">{{ c.unit }} x <strong>${{ Number(c.price).toFixed(2) }}</strong></span>
+              </div>
+            </div>
+          </section>
         </div>
-      </footer>
+
+        <!-- Columna derecha: Cantidad + Agregar + Precio -->
+        <div class="details-right" @click.stop>
+          <section class="quantity-section">
+            <h3 class="section-title">CANTIDAD</h3>
+            <div class="quantity-controls">
+              <button @click.stop="decrementQuantity" class="qty-btn" :disabled="quantity <= 1 || product.badge === 'Agotado'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <span class="qty-display" :style="{ opacity: product.badge === 'Agotado' ? 0.5 : 1 }">{{ quantity }}</span>
+              <button @click.stop="incrementQuantity" class="qty-btn" :disabled="product.badge === 'Agotado'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </section>
+
+          <hr class="separator" style="margin: 0.6rem 0;" />
+
+          <!-- Accion Final y Precio -->
+          <footer class="details-footer">
+            <button class="add-to-cart-btn" :disabled="product.badge === 'Agotado'" :class="{ 'is-agotado': product.badge === 'Agotado', 'is-added': cartAdded }" @click.stop="addToCart">
+              <svg v-if="!cartAdded && product.badge !== 'Agotado'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"></circle>
+                <circle cx="20" cy="21" r="1"></circle>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+              </svg>
+              <svg v-else-if="cartAdded" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+              </svg>
+              <span class="btn-text">{{ product.badge === 'Agotado' ? 'AGOTADO' : cartAdded ? '¡Listo!' : 'AGREGAR' }}</span>
+            </button>
+            <div class="footer-bottom">
+              <button class="fav-heart-btn" :class="{ active: favStore.isFavorite(product.id) }" @click.stop="favStore.toggle(product)" :title="favStore.isFavorite(product.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'">
+                <svg width="16" height="16" viewBox="0 0 24 24" :fill="favStore.isFavorite(product.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </button>
+              <div class="price-display">
+                <span class="currency">$</span>{{ totalPrice }}
+              </div>
+            </div>
+          </footer>
+        </div>
+
+      </div>
     </div>
 
     <!-- Modal para ver la Tarjeta Expandida -->
@@ -551,12 +561,40 @@ onMounted(() => {
   margin: 0;
 }
 
-/* Selector Cantidad y Combo */
-.quantity-combo-row {
+/* Detalles Layout Horizontal */
+.product-details {
+  padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  gap: 0.6rem;
+}
+
+/* Columnas horizontales: Info izquierda | Quantity derecha */
+.details-horizontal {
+  display: flex;
   gap: 1rem;
+  align-items: flex-start;
+}
+
+.details-left {
+  flex: 1.1;
+  min-width: 0;
+}
+
+.details-right {
+  flex: 0.85;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-left: 1px dashed rgba(0,0,0,0.12);
+  padding-left: 1rem;
+}
+
+/* Cantidad Section dentro del right panel */
+.quantity-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .quantity-controls {
@@ -652,14 +690,19 @@ onMounted(() => {
   margin-top: 1px;
 }
 
-/* Footer (Boton de compra y precio) */
+/* Footer (Boton de compra y precio) — dentro del panel derecho */
 .details-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.footer-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 0.2rem;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .add-to-cart-btn {
