@@ -2,6 +2,7 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrdersStore } from '@/stores/useOrdersStore'
+import { useToast } from '@/composables/useToast'
 import DataTable from 'datatables.net-vue3'
 import DataTablesCore from 'datatables.net-dt'
 import 'datatables.net-dt/css/dataTables.dataTables.css'
@@ -9,6 +10,7 @@ import 'datatables.net-dt/css/dataTables.dataTables.css'
 DataTable.use(DataTablesCore)
 const router = useRouter()
 const ordersStore = useOrdersStore()
+const { warning, success } = useToast()
 
 // ─── PESTAÑAS ─────────────────────────────────────────────────────────────────
 const activeTab = ref('config')   // 'config' | 'orders'
@@ -35,22 +37,73 @@ const defaultImprenta = {
   tasaBCV: '1',
 }
 
-const emisor   = reactive({ ...defaultEmisor,   ...(JSON.parse(localStorage.getItem(CFG_EMISOR_KEY)   || '{}')) })
-const imprenta = reactive({ ...defaultImprenta, ...(JSON.parse(localStorage.getItem(CFG_IMPRENTA_KEY) || '{}')) })
+const emisor   = reactive({ ...defaultEmisor })
+const imprenta = reactive({ ...defaultImprenta })
+
+onMounted(async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/fiscal-config')
+    const json = await res.json()
+    if (json.success && json.data) {
+      Object.assign(emisor, json.data.emisor)
+      Object.assign(imprenta, json.data.imprenta)
+    }
+  } catch(e) {
+    console.error('Error cargando la configuración fiscal:', e)
+  }
+})
 
 const savedEmisor    = ref(false)
 const savedImprenta  = ref(false)
 
-function saveEmisor() {
-  localStorage.setItem(CFG_EMISOR_KEY, JSON.stringify({ ...emisor }))
-  savedEmisor.value = true
-  setTimeout(() => savedEmisor.value = false, 2500)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const RIF_REGEX = /^[VJEGP]-\d{7,9}$/
+
+async function saveEmisor() {
+  if (!emisor.nombre.trim() || emisor.nombre.length < 3) return warning('El nombre de la empresa debe tener al menos 3 caracteres.')
+  if (!RIF_REGEX.test((emisor.rif || '').toUpperCase())) return warning('El RIF del emisor no es válido (Ej: J-12345678).')
+  if (!emisor.domicilio.trim()) return warning('El domicilio fiscal es obligatorio.')
+  if (!emisor.telefono.trim()) return warning('El teléfono es obligatorio.')
+  if (!EMAIL_REGEX.test(emisor.email)) return warning('El correo electrónico no es válido.')
+
+  try {
+    await fetch('http://localhost:3001/api/fiscal-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emisor, imprenta })
+    })
+    savedEmisor.value = true
+    success('Guardado Emisor')
+    setTimeout(() => savedEmisor.value = false, 2500)
+  } catch (e) {
+    console.error('Error guardando configuración fiscal:', e)
+    warning('Error de red al guardar los datos')
+  }
 }
 
-function saveImprenta() {
-  localStorage.setItem(CFG_IMPRENTA_KEY, JSON.stringify({ ...imprenta }))
-  savedImprenta.value = true
-  setTimeout(() => savedImprenta.value = false, 2500)
+async function saveImprenta() {
+  if (!imprenta.nombre.trim() || imprenta.nombre.length < 3) return warning('El nombre de la imprenta debe tener al menos 3 caracteres.')
+  if (!RIF_REGEX.test((imprenta.rif || '').toUpperCase())) return warning('El RIF de la imprenta no es válido (Ej: J-12345678).')
+  if (!imprenta.nomenclatura.trim() || imprenta.nomenclatura.length < 4) return warning('La nomenclatura de la Providencia es obligatoria.')
+  if (!imprenta.fechaProvidencia.trim() || imprenta.fechaProvidencia.length < 8) return warning('La fecha de la Providencia es obligatoria.')
+  
+  if (!/^\d+$/.test(imprenta.controlDesde)) return warning('El N° de Control Desde debe ser únicamente numérico.')
+  if (!/^\d+$/.test(imprenta.controlHasta)) return warning('El N° de Control Hasta debe ser únicamente numérico.')
+  if (BigInt(imprenta.controlDesde) > BigInt(imprenta.controlHasta)) return warning('El N° de Control Desde no puede ser mayor al N° de Control Hasta.')
+
+  try {
+    await fetch('http://localhost:3001/api/fiscal-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emisor, imprenta })
+    })
+    savedImprenta.value = true
+    success('Guardado Imprenta')
+    setTimeout(() => savedImprenta.value = false, 2500)
+  } catch (e) {
+    console.error('Error guardando configuración fiscal:', e)
+    warning('Error de red al guardar los datos')
+  }
 }
 
 // ─── FILTROS DE LA LISTA ──────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useOrdersStore } from '@/stores/useOrdersStore'
 
@@ -13,15 +13,13 @@ const order = computed(() => ordersStore.orders.find(o => o.id === orderId) || n
 const emailStatus = ref('sending') // sending, success, error
 
 // ─── IMPRENTA CONFIG ───
-const CFG_EMISOR_KEY   = 'bdm_factura_emisor'
-const CFG_IMPRENTA_KEY = 'bdm_factura_imprenta'
 const defaultEmisor = { nombre: 'DISTRIBUIDORA Y COMERCIO B-DEL MAR 3011 C.A', rif: 'J-000000000', domicilio: 'Caracas, Venezuela', telefono: '0424-4293765', email: 'bdelmar69@gmail.com' }
 const defaultImprenta = { nombre: '', rif: '', nomenclatura: '', fechaProvidencia: '', controlDesde: '00000001', controlHasta: '00099999', tasaBCV: '1' }
-const emisor = { ...defaultEmisor, ...(JSON.parse(localStorage.getItem(CFG_EMISOR_KEY) || '{}')) }
-const imprenta = { ...defaultImprenta, ...(JSON.parse(localStorage.getItem(CFG_IMPRENTA_KEY) || '{}')) }
+const emisor = reactive({ ...defaultEmisor })
+const imprenta = reactive({ ...defaultImprenta })
 
-const tasaBCV = parseFloat(imprenta.tasaBCV) || 1
-function toBS(usd) { return (parseFloat(usd) * tasaBCV).toFixed(2) }
+const tasaBCV = computed(() => parseFloat(imprenta.tasaBCV) || 1)
+function toBS(usd) { return (parseFloat(usd) * tasaBCV.value).toFixed(2) }
 
 const pad = (n, d = 2) => String(n).padStart(d, '0')
 const emissionDate = computed(() => {
@@ -61,6 +59,15 @@ const saldoPendiente = computed(() => Math.max(0, totalOperacion.value - totalPa
 function printInvoice() { window.print() }
 
 onMounted(async () => {
+  try {
+    const resConfig = await fetch('http://localhost:3001/api/fiscal-config')
+    const jsonConfig = await resConfig.json()
+    if (jsonConfig.success && jsonConfig.data) {
+      if (jsonConfig.data.emisor) Object.assign(emisor, jsonConfig.data.emisor)
+      if (jsonConfig.data.imprenta) Object.assign(imprenta, jsonConfig.data.imprenta)
+    }
+  } catch(e) { console.error('Error al cargar config fiscal', e) }
+
   if (!order.value) {
     router.push('/catalogo')
     return

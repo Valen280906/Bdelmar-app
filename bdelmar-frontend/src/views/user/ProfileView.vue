@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFavoritesStore } from '@/stores/useFavoritesStore'
 import { useOrdersStore } from '@/stores/useOrdersStore'
+import { useToast } from '@/composables/useToast'
 import DataTable from 'datatables.net-vue3'
 import DataTablesCore from 'datatables.net-dt'
 import 'datatables.net-dt/css/dataTables.dataTables.css'
@@ -12,6 +13,7 @@ DataTable.use(DataTablesCore)
 const router = useRouter()
 const favStore = useFavoritesStore()
 const ordersStore = useOrdersStore()
+const { warning, success } = useToast()
 
 const activeTab = ref('info') // 'info' | 'favorites' | 'orders' | 'coupons'
 
@@ -45,7 +47,58 @@ const rif = ref(localStorage.getItem(getUk('profile_rif')) || '')
 
 const isEditing = ref(!(name.value || email.value))
 const saved = ref(false)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PHONE_BODY_REGEX = /^\d{7}$/
+
+const nameError = computed(() => {
+  if (name.value && /[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ]/.test(name.value)) return 'El nombre no debe contener números ni caracteres especiales'
+  return ''
+})
+const emailError = computed(() => {
+  if (email.value && !EMAIL_REGEX.test(email.value)) return 'El correo electrónico no es válido'
+  return ''
+})
+const phoneError = computed(() => {
+  if (phoneBody.value && !PHONE_BODY_REGEX.test(phoneBody.value)) return 'El teléfono debe tener 7 dígitos numéricos'
+  return ''
+})
+const rifError = computed(() => {
+  if (!rif.value) return ''
+  const val = rif.value.toUpperCase()
+  if (val.startsWith('V-')) {
+    if (!/^V-\d{5,8}$/.test(val)) return 'La cédula V- debe tener entre 5 y 8 dígitos'
+  } else if (/^[JEGP]-/.test(val)) {
+    if (!/^[JEGP]-\d{8,9}$/.test(val)) return 'El RIF debe tener entre 8 y 9 dígitos'
+  } else {
+    return 'Debe empezar por V-, J-, E-, P- o G-'
+  }
+  return ''
+})
+const paypalError = computed(() => {
+  if (paypalEmail.value.trim() && !EMAIL_REGEX.test(paypalEmail.value)) return 'El correo de PayPal no es válido'
+  return ''
+})
+const pmPhoneError = computed(() => {
+  if (pagoMovilBody.value && !PHONE_BODY_REGEX.test(pagoMovilBody.value)) return 'El número debe tener 7 dígitos numéricos'
+  return ''
+})
+
+const handleRifFocus = () => {
+  if (!rif.value) rif.value = 'V-'
+}
+
 function saveProfile() {
+  if (nameError.value || !name.value.trim() || name.value.trim().length < 3) return warning('El nombre es inválido o muy corto.')
+  if (emailError.value || !email.value) return warning('El correo electrónico no es válido.')
+  if (phoneError.value || !phoneBody.value) return warning('El número de teléfono no es válido.')
+  if (rifError.value || !rif.value) return warning('El RIF / Cédula no es válido.')
+  if (paypalError.value) return warning('El correo de PayPal no es válido.')
+  
+  if (pagoMovilBody.value || pagoMovilBank.value) {
+    if (pmPhoneError.value) return warning('El número de Pago Móvil no es válido.')
+    if (!pagoMovilBank.value) return warning('Debe seleccionar un banco para el Pago Móvil.')
+  }
+
   localStorage.setItem(getUk('profile_name'), name.value)
   localStorage.setItem(getUk('profile_email'), email.value)
   localStorage.setItem(getUk('profile_phone'), phonePrefix.value + phoneBody.value)
@@ -57,6 +110,7 @@ function saveProfile() {
   localStorage.setItem(getUk('profile_rif'), rif.value)
   isEditing.value = false
   saved.value = true
+  success('Información guardada con éxito')
   setTimeout(() => saved.value = false, 2500)
 }
 
@@ -159,10 +213,12 @@ const initials = computed(() => {
           <div class="form-group">
             <label>Nombre Completo</label>
             <input v-model="name" placeholder="Tu nombre completo" :disabled="!isEditing" />
+            <span v-if="nameError" class="error-msg">{{ nameError }}</span>
           </div>
           <div class="form-group">
             <label>Correo Electrónico</label>
             <input v-model="email" type="email" placeholder="tu@correo.com" :disabled="!isEditing" />
+            <span v-if="emailError" class="error-msg">{{ emailError }}</span>
           </div>
           <div class="form-group row-group">
             <label>Teléfono</label>
@@ -176,6 +232,7 @@ const initials = computed(() => {
               </select>
               <input v-model="phoneBody" placeholder="1234567" maxlength="7" :disabled="!isEditing" />
             </div>
+            <span v-if="phoneError" class="error-msg">{{ phoneError }}</span>
           </div>
           <div class="form-group">
             <label>Estado</label>
@@ -190,7 +247,8 @@ const initials = computed(() => {
           </div>
           <div class="form-group">
             <label>RIF / Cédula</label>
-            <input v-model="rif" placeholder="V-00000000" :disabled="!isEditing" />
+            <input v-model="rif" placeholder="V-00000000" :disabled="!isEditing" @focus="handleRifFocus"/>
+            <span v-if="rifError" class="error-msg">{{ rifError }}</span>
           </div>
         </div>
 
@@ -207,6 +265,7 @@ const initials = computed(() => {
               <span class="paypal-text-logo">PayPal</span> — Email de cuenta
             </label>
             <input v-model="paypalEmail" type="email" placeholder="tu@paypal.com" :disabled="!isEditing" />
+            <span v-if="paypalError" class="error-msg">{{ paypalError }}</span>
           </div>
           
           <div class="form-group full-span mt-3">
@@ -224,6 +283,7 @@ const initials = computed(() => {
                   </select>
                   <input v-model="pagoMovilBody" placeholder="1234567" maxlength="7" :disabled="!isEditing" />
                 </div>
+                <span v-if="pmPhoneError" class="error-msg">{{ pmPhoneError }}</span>
               </div>
               <div class="form-group">
                 <label>Banco</label>
@@ -250,7 +310,7 @@ const initials = computed(() => {
             Editar Información
           </button>
           <transition name="fade">
-            <span v-if="saved" class="saved-toast">✓ Guardado correctamente</span>
+            <span v-if="saved" class="saved-toast"><ion-icon name="checkmark"></ion-icon> Guardado correctamente</span>
           </transition>
         </div>
       </section>
@@ -259,7 +319,7 @@ const initials = computed(() => {
       <section v-if="activeTab === 'favorites'" class="tab-section">
         <h2 class="tab-title">Mis Favoritos</h2>
         <div v-if="favStore.favorites.length === 0" class="empty-state">
-          <div class="empty-icon">💙</div>
+          <div class="empty-icon"><ion-icon name="heart"></ion-icon></div>
           <p>Aún no has guardado ningún producto como favorito.</p>
           <button class="btn-outline" @click="router.push('/catalogo')">Explorar Catálogo</button>
         </div>
@@ -284,7 +344,7 @@ const initials = computed(() => {
       <section v-if="activeTab === 'orders'" class="tab-section">
         <h2 class="tab-title">Mis Órdenes</h2>
         <div v-if="userOrders.length === 0" class="empty-state">
-          <div class="empty-icon">📋</div>
+          <div class="empty-icon"><ion-icon name="clipboard"></ion-icon></div>
           <p>Todavía no has realizado ningún pedido.</p>
           <button class="btn-outline" @click="router.push('/catalogo')">Ir a comprar</button>
         </div>
@@ -326,7 +386,7 @@ const initials = computed(() => {
       <section v-if="activeTab === 'coupons'" class="tab-section">
         <h2 class="tab-title">Cupones Disponibles</h2>
         <div v-if="activeCoupons.length === 0" class="empty-state">
-          <div class="empty-icon">🎟️</div>
+          <div class="empty-icon"><ion-icon name="ticket"></ion-icon></div>
           <p>No hay cupones promocionales disponibles en este momento.</p>
         </div>
         <div v-else class="coupons-grid">
@@ -518,6 +578,13 @@ const initials = computed(() => {
 .saved-toast { color: #2e7d32; font-weight: 600; font-size: 0.9rem; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.4s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.error-msg {
+  color: #d32f2f;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: -0.1rem;
+}
 
 /* FAVORITES */
 .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }

@@ -32,15 +32,63 @@ const initialPaymentAmount = computed(() => {
   return paymentPlan.value === 'full' ? cartStore.totalPrice : cartStore.totalPrice * 0.5
 })
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const RIF_REGEX = /^[VJEGP]-\d{7,9}$/
+const PHONE_FULL_REGEX = /^(0412|0414|0416|0424|0426)-?\d{7}$/
+
+const nameError = computed(() => {
+  if (clientInfo.value.name && /[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ]/.test(clientInfo.value.name)) return 'El nombre no debe contener números ni caracteres especiales'
+  return ''
+})
+const emailError = computed(() => {
+  if (clientInfo.value.email && !EMAIL_REGEX.test(clientInfo.value.email.trim())) return 'El correo electrónico no es válido'
+  return ''
+})
+const phoneError = computed(() => {
+  if (clientInfo.value.phone && !PHONE_FULL_REGEX.test(clientInfo.value.phone.trim())) return 'El teléfono debe ser válido (Ej: 0412-1234567)'
+  return ''
+})
+
+const handleRifFocus = () => {
+  if (!pagoMovilRif.value) pagoMovilRif.value = 'V-'
+}
+const rifError = computed(() => {
+  if (!pagoMovilRif.value) return ''
+  const val = pagoMovilRif.value.toUpperCase()
+  if (val.startsWith('V-')) {
+    if (!/^V-\d{5,8}$/.test(val)) return 'La cédula V- debe tener entre 5 y 8 dígitos'
+  } else if (/^[JEGP]-/.test(val)) {
+    if (!/^[JEGP]-\d{8,9}$/.test(val)) return 'El RIF debe tener entre 8 y 9 dígitos'
+  } else {
+    return 'Debe empezar por V-, J-, E-, P- o G-'
+  }
+  return ''
+})
+const pmPhoneError = computed(() => {
+  const val = pagoMovilPhone.value.trim()
+  if (val && !PHONE_FULL_REGEX.test(val) && !/^\d{11}$/.test(val)) return 'El teléfono numérico completo debe ser de 11 dígitos o separar por guion'
+  return ''
+})
+const paypalError = computed(() => {
+  if (paypalEmail.value.trim() && !EMAIL_REGEX.test(paypalEmail.value.trim())) return 'El correo de PayPal no es válido'
+  return ''
+})
+
 const isStep1Valid = computed(() =>
-  clientInfo.value.name.trim() &&
-  clientInfo.value.email.trim() &&
-  clientInfo.value.phone.trim()
+  clientInfo.value.name.trim().length >= 3 &&
+  EMAIL_REGEX.test(clientInfo.value.email.trim()) &&
+  PHONE_FULL_REGEX.test(clientInfo.value.phone.trim())
 )
 
 const isStep2Valid = computed(() => {
-  if (paymentMethod.value === 'paypal') return paypalEmail.value.trim().includes('@')
-  return pagoMovilPhone.value.trim() && pagoMovilBank.value.trim()
+  if (paymentMethod.value === 'paypal') return EMAIL_REGEX.test(paypalEmail.value.trim())
+  
+  const phoneVal = pagoMovilPhone.value.trim()
+  const isValidPhone = PHONE_FULL_REGEX.test(phoneVal) || /^\d{11}$/.test(phoneVal)
+  const isValidBank = !!pagoMovilBank.value.trim()
+  const isValidRif = RIF_REGEX.test((pagoMovilRif.value || '').trim().toUpperCase())
+  
+  return isValidPhone && isValidBank && isValidRif
 })
 
 function nextStep() {
@@ -115,12 +163,12 @@ const BDELMAR_RIF = 'J-00000000-0'
     <!-- STEPS INDICATOR -->
     <div class="steps-bar" v-if="step < 3">
       <div class="step" :class="{ done: step > 1, active: step === 1 }">
-        <span class="step-dot">{{ step > 1 ? '✓' : '1' }}</span>
+        <span class="step-dot"><ion-icon name="checkmark" v-if="step > 1"></ion-icon><template v-else>1</template></span>
         <span class="step-label">Datos</span>
       </div>
       <div class="step-line"/>
       <div class="step" :class="{ done: step > 2, active: step === 2 }">
-        <span class="step-dot">{{ step > 2 ? '✓' : '2' }}</span>
+        <span class="step-dot"><ion-icon name="checkmark" v-if="step > 2"></ion-icon><template v-else>2</template></span>
         <span class="step-label">Pago</span>
       </div>
       <div class="step-line"/>
@@ -139,14 +187,17 @@ const BDELMAR_RIF = 'J-00000000-0'
           <div class="form-group">
             <label>Nombre Completo *</label>
             <input v-model="clientInfo.name" placeholder="Ej. María González" />
+            <span v-if="nameError" class="error-msg">{{ nameError }}</span>
           </div>
           <div class="form-group">
             <label>Correo Electrónico *</label>
             <input v-model="clientInfo.email" type="email" placeholder="tu@correo.com" />
+            <span v-if="emailError" class="error-msg">{{ emailError }}</span>
           </div>
           <div class="form-group">
             <label>Teléfono *</label>
-            <input v-model="clientInfo.phone" placeholder="0412-XXXXXXX" />
+            <input v-model="clientInfo.phone" placeholder="0412-1234567" />
+            <span v-if="phoneError" class="error-msg">{{ phoneError }}</span>
           </div>
           <div class="form-group">
             <label>Dirección de Entrega</label>
@@ -219,6 +270,7 @@ const BDELMAR_RIF = 'J-00000000-0'
           </div>
           <p class="payment-note">Ingresa tu email de PayPal para que el administrador confirme el pago:</p>
           <input class="pay-input" v-model="paypalEmail" type="email" placeholder="tu@paypal.com" />
+          <span v-if="paypalError" class="error-msg" style="margin-top: 0.5rem; display: block;">{{ paypalError }}</span>
         </div>
 
         <!-- Pago Móvil flow -->
@@ -246,9 +298,15 @@ const BDELMAR_RIF = 'J-00000000-0'
           </div>
           <p class="payment-note">Ingresa tu teléfono y banco para que el admin verifique:</p>
           <div class="form-grid" style="gap: 0.75rem;">
-            <input class="pay-input" v-model="pagoMovilPhone" placeholder="Teléfono que realizó el pago" />
+            <div>
+              <input class="pay-input" v-model="pagoMovilPhone" placeholder="Teléfono que realizó el pago" />
+              <span v-if="pmPhoneError" class="error-msg" style="margin-top: 0.2rem; display: block;">{{ pmPhoneError }}</span>
+            </div>
             <input class="pay-input" v-model="pagoMovilBank" placeholder="Banco que usaste" />
-            <input class="pay-input" v-model="pagoMovilRif" placeholder="Tu Cédula o RIF" />
+            <div>
+              <input class="pay-input" v-model="pagoMovilRif" placeholder="Tu Cédula o RIF" @focus="handleRifFocus"/>
+              <span v-if="rifError" class="error-msg" style="margin-top: 0.2rem; display: block;">{{ rifError }}</span>
+            </div>
           </div>
         </div>
 
@@ -433,6 +491,7 @@ const BDELMAR_RIF = 'J-00000000-0'
 .detail-value.amount { color: #2e7d32; font-size: 1.1rem; }
 .payment-note { font-size: 0.82rem; color: var(--color-text-secondary); margin: 0.75rem 0 0.5rem; }
 .pay-input { margin-bottom: 0; }
+.error-msg { color: #d32f2f; font-size: 0.75rem; font-weight: 600; }
 
 .step2-actions { display: flex; gap: 1rem; align-items: center; }
 .btn-back-step { background: none; border: 1px solid rgba(128,128,128,0.2); border-radius: 10px; padding: 0.7rem 1.2rem; cursor: pointer; color: var(--color-text-secondary); font-size: 0.9rem; }

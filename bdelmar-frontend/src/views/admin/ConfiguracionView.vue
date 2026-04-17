@@ -421,7 +421,7 @@ const dtOptions = {
               </td>
               <!-- Activa -->
               <td>
-                <span v-if="paleta.active" class="check-active">✓ Activa</span>
+                <span v-if="paleta.active" class="check-active"><ion-icon name="checkmark"></ion-icon> Activa</span>
                 <span v-else class="text-muted">—</span>
               </td>
               <!-- Acciones -->

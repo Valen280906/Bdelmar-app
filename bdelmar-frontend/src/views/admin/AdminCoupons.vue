@@ -50,9 +50,9 @@ function parseDays(raw) {
 }
 
 const categoryLabel = (cat) => ({
-  special_day: '🗓️ Día Especial',
-  purchase_count: '🛒 Acumulación',
-  promo_code: '🎟️ Código Promo'
+  special_day: 'Día Especial',
+  purchase_count: 'Acumulación',
+  promo_code: 'Código Promo'
 }[cat] || cat)
 
 const categoryClass = (cat) => ({
@@ -261,6 +261,9 @@ function toggleDay(day) {
           <tr v-for="c in coupons" :key="c.id">
             <td>
               <span class="type-badge" :class="categoryClass(c.coupon_category)">
+                <ion-icon v-if="c.coupon_category === 'special_day'" name="calendar"></ion-icon>
+                <ion-icon v-else-if="c.coupon_category === 'purchase_count'" name="cart"></ion-icon>
+                <ion-icon v-else-if="c.coupon_category === 'promo_code'" name="ticket"></ion-icon>
                 {{ categoryLabel(c.coupon_category) }}
               </span>
             </td>
@@ -305,7 +308,7 @@ function toggleDay(day) {
         </tbody>
       </table>
       <div v-else class="empty-state">
-        <div class="empty-icon">🎟️</div>
+        <div class="empty-icon"><ion-icon name="ticket"></ion-icon></div>
         <p>No hay cupones creados aún.</p>
         <button class="btn-create" @click="openTypeSelector">Crear el primer cupón</button>
       </div>
@@ -323,7 +326,7 @@ function toggleDay(day) {
         <p class="modal-sub">Cada tipo tiene una lógica y beneficio diferente para tus clientes.</p>
         <div class="type-cards">
           <button class="type-card" @click="selectType('special_day')">
-            <div class="type-card-icon day">🗓️</div>
+            <div class="type-card-icon day"><ion-icon name="calendar"></ion-icon></div>
             <div class="type-card-body">
               <strong>Día Especial</strong>
               <p>Válido solo en día(s) específicos de la semana que tú eliges. El descuento se activa automáticamente.</p>
@@ -331,7 +334,7 @@ function toggleDay(day) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
           <button class="type-card" @click="selectType('purchase_count')">
-            <div class="type-card-icon count">🛒</div>
+            <div class="type-card-icon count"><ion-icon name="cart"></ion-icon></div>
             <div class="type-card-body">
               <strong>Acumulación de Compras</strong>
               <p>Se otorga automáticamente cuando el usuario completa N compras en el mes. Fideliza a tus mejores clientes.</p>
@@ -339,7 +342,7 @@ function toggleDay(day) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
           <button class="type-card" @click="selectType('promo_code')">
-            <div class="type-card-icon promo">🎟️</div>
+            <div class="type-card-icon promo"><ion-icon name="ticket"></ion-icon></div>
             <div class="type-card-body">
               <strong>Código Promocional</strong>
               <p>Tú defines el código. El cliente lo introduce en el checkout para aplicar el descuento. Solo usable una vez por persona.</p>
@@ -356,7 +359,7 @@ function toggleDay(day) {
     <div v-if="showSpecialDayModal" class="overlay" @click.self="closeAll">
       <div class="modal form-modal">
         <div class="modal-head">
-          <div class="modal-head-icon day">🗓️</div>
+          <div class="modal-head-icon day"><ion-icon name="calendar"></ion-icon></div>
           <div>
             <h3>{{ isEditing ? 'Editar Cupón' : 'Nuevo Cupón' }} · Día Especial</h3>
             <p class="modal-sub">Se activa automáticamente en el(los) día(s) que elijas.</p>
@@ -426,7 +429,7 @@ function toggleDay(day) {
     <div v-if="showPurchaseCountModal" class="overlay" @click.self="closeAll">
       <div class="modal form-modal">
         <div class="modal-head">
-          <div class="modal-head-icon count">🛒</div>
+          <div class="modal-head-icon count"><ion-icon name="cart"></ion-icon></div>
           <div>
             <h3>{{ isEditing ? 'Editar Cupón' : 'Nuevo Cupón' }} · Acumulación</h3>
             <p class="modal-sub">Se otorga al cliente cuando completa N compras en el mes.</p>
@@ -492,7 +495,7 @@ function toggleDay(day) {
     <div v-if="showPromoCodeModal" class="overlay" @click.self="closeAll">
       <div class="modal form-modal">
         <div class="modal-head">
-          <div class="modal-head-icon promo">🎟️</div>
+          <div class="modal-head-icon promo"><ion-icon name="ticket"></ion-icon></div>
           <div>
             <h3>{{ isEditing ? 'Editar Cupón' : 'Nuevo Cupón' }} · Código Promo</h3>
             <p class="modal-sub">Define el código que los clientes ingresarán en el checkout.</p>

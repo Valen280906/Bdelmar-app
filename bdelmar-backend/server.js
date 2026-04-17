@@ -397,6 +397,57 @@ app.post('/api/theme', async (req, res) => {
 })
 
 // ============================================================
+// === FISCAL CONFIG ==========================================
+// ============================================================
+
+// GET /api/fiscal-config → retorna la configuración fiscal
+app.get('/api/fiscal-config', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM fiscal_config LIMIT 1'
+    )
+    if (rows.length === 0) {
+      return res.json({ success: true, data: null })
+    }
+    const row = rows[0]
+    res.json({
+      success: true,
+      data: {
+        id: row.id,
+        emisor: row.emisor_json,
+        imprenta: row.imprenta_json
+      }
+    })
+  } catch (err) {
+    console.error('GET /api/fiscal-config error:', err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// POST /api/fiscal-config → guarda la configuración fiscal
+app.post('/api/fiscal-config', async (req, res) => {
+  const { emisor, imprenta } = req.body
+  try {
+    const [existing] = await pool.query('SELECT id FROM fiscal_config LIMIT 1')
+    if (existing.length > 0) {
+      await pool.query(
+        'UPDATE fiscal_config SET emisor_json = ?, imprenta_json = ?, updated_at = NOW() WHERE id = ?',
+        [JSON.stringify(emisor), JSON.stringify(imprenta), existing[0].id]
+      )
+    } else {
+      await pool.query(
+        'INSERT INTO fiscal_config (emisor_json, imprenta_json) VALUES (?, ?)',
+        [JSON.stringify(emisor), JSON.stringify(imprenta)]
+      )
+    }
+    res.json({ success: true })
+  } catch (err) {
+    console.error('POST /api/fiscal-config error:', err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// ============================================================
 // === PRODUCTS ===============================================
 // ============================================================
 

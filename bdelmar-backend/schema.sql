@@ -58,6 +58,21 @@ SELECT
   'claro'
 WHERE NOT EXISTS (SELECT 1 FROM theme_config LIMIT 1);
 
+-- Tabla de configuración fiscal
+CREATE TABLE IF NOT EXISTS fiscal_config (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    emisor_json     JSON         NOT NULL,
+    imprenta_json   JSON         NOT NULL,
+    updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Configuración fiscal por defecto
+INSERT INTO fiscal_config (emisor_json, imprenta_json)
+SELECT
+  '{"nombre": "DISTRIBUIDORA Y COMERCIO B-DEL MAR 3011 C.A", "rif": "J-000000000", "domicilio": "Caracas, Venezuela", "telefono": "0424-4293765", "email": "bdelmar69@gmail.com"}',
+  '{"nombre": "", "rif": "", "nomenclatura": "", "fechaProvidencia": "", "controlDesde": "00000001", "controlHasta": "00099999", "tasaBCV": "1"}'
+WHERE NOT EXISTS (SELECT 1 FROM fiscal_config LIMIT 1);
+
 -- Tabla de productos
 CREATE TABLE IF NOT EXISTS products (
     id            INT AUTO_INCREMENT PRIMARY KEY,

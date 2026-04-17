@@ -114,21 +114,21 @@ const statusCls = { pending: 'badge-pending', partial: 'badge-partial', paid: 'b
         </div>
       </div>
       <div class="metric-card">
-        <div class="metric-icon" style="background: rgba(56,142,60,0.1); color: #388e3c;">✓</div>
+        <div class="metric-icon" style="background: rgba(56,142,60,0.1); color: #388e3c;"><ion-icon name="checkmark"></ion-icon></div>
         <div class="metric-body">
           <span class="metric-label">Total Cobrado</span>
           <strong class="metric-val" style="color:#388e3c;">${{ totalCollected.toFixed(2) }}</strong>
         </div>
       </div>
       <div class="metric-card">
-        <div class="metric-icon" style="background: rgba(245,124,0,0.1); color: #f57c00;">⏳</div>
+        <div class="metric-icon" style="background: rgba(245,124,0,0.1); color: #f57c00;"><ion-icon name="time"></ion-icon></div>
         <div class="metric-body">
           <span class="metric-label">Saldo Pendiente</span>
           <strong class="metric-val" style="color:#e65100;">${{ totalPending.toFixed(2) }}</strong>
         </div>
       </div>
       <div class="metric-card">
-        <div class="metric-icon" style="background: rgba(103,58,183,0.1); color: #7b1fa2;">📦</div>
+        <div class="metric-icon" style="background: rgba(103,58,183,0.1); color: #7b1fa2;"><ion-icon name="cube"></ion-icon></div>
         <div class="metric-body">
           <span class="metric-label">Ventas Activas</span>
           <strong class="metric-val">{{ activeOrders }}</strong>

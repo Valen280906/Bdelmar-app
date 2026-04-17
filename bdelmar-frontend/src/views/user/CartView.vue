@@ -11,7 +11,20 @@ const favStore   = useFavoritesStore()
 const ordersStore = useOrdersStore()
 
 // Ensure we show the correct user's debt on mount
-onMounted(() => ordersStore.reloadForUser())
+const tasaBCV = ref(0);
+
+onMounted(async () => {
+  ordersStore.reloadForUser();
+  try {
+    const res = await fetch('http://localhost:3001/api/fiscal-config');
+    const json = await res.json();
+    if (json.success && json.data && json.data.imprenta) {
+      tasaBCV.value = parseFloat(json.data.imprenta.tasaBCV) || 0;
+    }
+  } catch(e) {
+    console.error('Error al obtener la configuración fiscal:', e);
+  }
+})
 
 // ---------- Image helper ----------
 const getImageUrl = (name) => {
@@ -36,11 +49,7 @@ function setCheckoutError(msg) {
   setTimeout(() => { if (checkoutError.value === msg) checkoutError.value = '' }, 5000)
 }
 
-// Tasa BCV (leída de la configuración de imprenta en admin)
-const tasaBCV = computed(() => {
-  const raw = JSON.parse(localStorage.getItem('bdm_factura_imprenta') || '{}')
-  return parseFloat(raw.tasaBCV) || 0
-})
+// Tasa BCV administrada en el onMounted arriba
 function toBS(usd) {
   if (!tasaBCV.value) return ''
   return 'Bs. ' + (parseFloat(usd) * tasaBCV.value).toFixed(2)

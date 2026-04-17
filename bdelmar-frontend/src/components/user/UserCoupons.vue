@@ -133,7 +133,7 @@ onMounted(async () => {
       <div v-if="todayCoupons.length > 0" class="uc-group">
         <div class="group-label day-label">
           <span class="label-dot day"></span>
-          🗓️ ¡Hoy es tu día de descuento!
+          <ion-icon name="calendar"></ion-icon> ¡Hoy es tu día de descuento!
         </div>
         <div class="cards-row">
           <div class="uc-card day-card" v-for="c in todayCoupons" :key="c.id">
@@ -155,7 +155,7 @@ onMounted(async () => {
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   Válido: {{ daysLabel(c.special_days) }}
                 </div>
-                <div class="auto-chip">✓ Se aplica automáticamente en el checkout</div>
+                <div class="auto-chip"><ion-icon name="checkmark"></ion-icon> Se aplica automáticamente en el checkout</div>
               </div>
             </div>
           </div>
@@ -166,7 +166,7 @@ onMounted(async () => {
       <div v-if="purchaseCoupons.length > 0" class="uc-group">
         <div class="group-label count-label">
           <span class="label-dot count"></span>
-          🛒 Programa de Fidelidad
+          <ion-icon name="cart"></ion-icon> Programa de Fidelidad
         </div>
         <div class="cards-row">
           <div class="uc-card count-card" v-for="c in purchaseCoupons" :key="c.id">
@@ -204,7 +204,7 @@ onMounted(async () => {
       <div v-if="promoCoupons.length > 0" class="uc-group">
         <div class="group-label promo-label">
           <span class="label-dot promo"></span>
-          🎟️ Códigos Promocionales
+          <ion-icon name="ticket"></ion-icon> Códigos Promocionales
         </div>
         <div class="cards-row">
           <div
@@ -239,7 +239,7 @@ onMounted(async () => {
               <div v-if="c.min_purchase > 0" class="min-purchase-note">
                 Compra mínima: ${{ c.min_purchase }}
               </div>
-              <div v-if="userAlreadyHas(c)" class="used-overlay-msg">✓ Ya utilizaste este cupón</div>
+              <div v-if="userAlreadyHas(c)" class="used-overlay-msg"><ion-icon name="checkmark"></ion-icon> Ya utilizaste este cupón</div>
               <div v-else class="once-note">Solo puede usarse una vez por cuenta</div>
             </div>
           </div>
