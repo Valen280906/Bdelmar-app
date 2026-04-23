@@ -328,19 +328,33 @@ const dtOptions = {
         </div>
       </div>
 
-      <!-- Modo toggle -->
-      <div class="mode-toggles">
-        <button
-          v-for="m in ['claro','oscuro','daltonico']"
-          :key="m"
-          class="mode-btn"
-          :class="{ active: state.mode === m }"
-          @click="themeStore.setMode(m)"
-        >
-          <span v-if="m === 'claro'"><ion-icon name="sunny"></ion-icon> Claro</span>
-          <span v-if="m === 'oscuro'"><ion-icon name="moon"></ion-icon> Oscuro</span>
-          <span v-if="m === 'daltonico'"><ion-icon name="eye"></ion-icon> Daltonismo</span>
-        </button>
+      <!-- Modo toggle y Loader toggle -->
+      <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+        <div class="mode-toggles">
+          <button
+            v-for="m in ['claro','oscuro','daltonico']"
+            :key="m"
+            class="mode-btn"
+            :class="{ active: state.mode === m }"
+            @click="themeStore.setMode(m)"
+          >
+            <span v-if="m === 'claro'"><ion-icon name="sunny"></ion-icon> Claro</span>
+            <span v-if="m === 'oscuro'"><ion-icon name="moon"></ion-icon> Oscuro</span>
+            <span v-if="m === 'daltonico'"><ion-icon name="eye"></ion-icon> Daltonismo</span>
+          </button>
+        </div>
+
+        <div class="loader-toggle" style="background: var(--color-bg-page); padding: 0.4rem 1rem; border-radius: var(--radius-pill);">
+          <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--color-text-primary); cursor:pointer; font-weight: 500;">
+            <input 
+              type="checkbox" 
+              :checked="state.loaderEnabled" 
+              @change="e => themeStore.toggleLoader(e.target.checked)"
+              style="width:1.1rem; height:1.1rem; cursor:pointer; accent-color:var(--color-primary);"
+            />
+            Loader 3D de Inicio
+          </label>
+        </div>
       </div>
     </div>
 

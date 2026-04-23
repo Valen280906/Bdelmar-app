@@ -7,16 +7,25 @@ import ServiciosSection from '@/components/user/ServiciosSection.vue'
 import ProductosSection from '@/components/user/ProductosSection.vue'
 import FooterComponent from '@/components/user/FooterComponent.vue'
 import { useThemeStore } from '@/stores/useThemeStore'
+import { ref } from 'vue'
+import LoaderTangram from '@/components/public/LoaderTangram.vue'
 
 const themeStore = useThemeStore()
+const isLoading = ref(themeStore.state.loaderEnabled)
 
 onMounted(() => {
   themeStore.loadFromStorage()
 })
+
+function onLoaderDone() {
+  isLoading.value = false
+}
 </script>
 
 <template>
-  <div class="user-catalog" :class="themeStore.state.mode">
+  <LoaderTangram v-if="isLoading" @done="onLoaderDone" />
+
+  <div v-show="!isLoading" class="user-catalog animate-bottom" :class="themeStore.state.mode">
     <HeaderComponent />
     
     <main>
@@ -45,5 +54,15 @@ main {
 
 section {
   scroll-margin-top: 68px;
+}
+
+.animate-bottom {
+  position: relative;
+  animation: animatebottom 1s ease-out forwards;
+}
+
+@keyframes animatebottom { 
+  from { bottom: -50px; opacity: 0; } 
+  to { bottom: 0; opacity: 1; }
 }
 </style>

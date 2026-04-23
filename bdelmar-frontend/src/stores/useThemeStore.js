@@ -60,6 +60,7 @@ export const useThemeStore = defineStore('theme', () => {
 
   const state = reactive({
     mode: 'claro',
+    loaderEnabled: true,
 
     paletas: [
       { ...PALETA_PRINCIPAL, id: 1, active: true },
@@ -448,6 +449,15 @@ export const useThemeStore = defineStore('theme', () => {
     return true
   }
 
+  function toggleLoader(val) {
+    if (val !== undefined) {
+      state.loaderEnabled = val
+    } else {
+      state.loaderEnabled = !state.loaderEnabled
+    }
+    persistToStorage()
+  }
+
   // ----- Persistencia en localStorage -----
 
   function persistToStorage() {
@@ -459,6 +469,7 @@ export const useThemeStore = defineStore('theme', () => {
         typographyConfigs: state.typographyConfigs,
         nextTypoId: state.nextTypoId,
         mode: state.mode,
+        loaderEnabled: state.loaderEnabled,
         nextId: state.nextId,
         fonts: state.fonts,  // incluye fuentes locales (dataUrl) para que persistan al recargar
         nextFontId: state.nextFontId,
@@ -479,6 +490,7 @@ export const useThemeStore = defineStore('theme', () => {
         if (saved.typographyConfigs) state.typographyConfigs = saved.typographyConfigs
         if (saved.nextTypoId) state.nextTypoId = saved.nextTypoId
         if (saved.mode) state.mode = saved.mode
+        if (saved.loaderEnabled !== undefined) state.loaderEnabled = saved.loaderEnabled
         if (saved.nextId) state.nextId = saved.nextId
         if (saved.fonts) state.fonts = saved.fonts
         if (saved.nextFontId) state.nextFontId = saved.nextFontId
@@ -502,6 +514,7 @@ export const useThemeStore = defineStore('theme', () => {
     guardarCambiosEdicion,
     getDraftStyles,
     discardDraft,
+    toggleLoader,
     addFont,
     removeFont,
     activateFont,

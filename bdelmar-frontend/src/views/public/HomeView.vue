@@ -8,6 +8,12 @@ import LandingServices from '@/components/public/LandingServices.vue'
 import LandingFooter from '@/components/public/LandingFooter.vue'
 import LegalModal from '@/components/public/LegalModal.vue'
 
+import LoaderTangram from '@/components/public/LoaderTangram.vue'
+import { useThemeStore } from '@/stores/useThemeStore'
+
+const themeStore = useThemeStore()
+const isLoading = ref(themeStore.state.loaderEnabled)
+
 const legalOpen = ref(false)
 const legalSection = ref('terminos')
 
@@ -19,10 +25,16 @@ function openLegal(section) {
 function closeLegal() {
   legalOpen.value = false
 }
+
+function onLoaderDone() {
+  isLoading.value = false
+}
 </script>
 
 <template>
-  <div class="landing-page">
+  <LoaderTangram v-if="isLoading" @done="onLoaderDone" />
+
+  <div v-show="!isLoading" class="landing-page animate-bottom">
     <LandingHeader />
     
     <main>
@@ -53,6 +65,16 @@ function closeLegal() {
 
 main {
   flex: 1;
+}
+
+.animate-bottom {
+  position: relative;
+  animation: animatebottom 1s ease-out forwards;
+}
+
+@keyframes animatebottom { 
+  from { bottom: -50px; opacity: 0; } 
+  to { bottom: 0; opacity: 1; }
 }
 </style>
 
