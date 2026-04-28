@@ -2,9 +2,11 @@
 import { onMounted, onUnmounted, shallowRef } from 'vue'
 import * as THREE from 'three'
 import gsap from 'gsap'
+import { useThemeStore } from '@/stores/useThemeStore'
 
 const emit = defineEmits(['done'])
 const canvasRef = shallowRef(null)
+const themeStore = useThemeStore()
 
 // Shape geometries (Centered rigid bodies)
 const shapesData = {
@@ -33,8 +35,8 @@ const transformations = [
   {
     c1: { x: 505.7, y: 220.7, rot: -90 }, // Movido a la derecha y arriba
     c2: { x: 84.3, y: 633.7, rot: -45 },  // Base
-    c3: { x: 695.0, y: 30.0, rot: -90 },  // Punta superior movida MUCHO más arriba y a la derecha
-    c4: { x: 595.0, y: 80.0, rot: -90 },  // Debajo de la punta superior, movido arriba y derecha
+    c3: { x: 695.0, y: 45.0, rot: 90 },   // Punta superior movida y volteada hacia abajo
+    c4: { x: 588.0, y: 87.0, rot: -90 },  // Debajo de la punta superior, movido ligeramente izquierda y abajo
     c5: { x: 345.0, y: 395.0, rot: 45 },  // Paralelogramo movido a la derecha y arriba
     c6: { x: 290.0, y: 290.0, rot: 180 }, // Triangulo arriba del cuadrado, movido izquierda y arriba
     c7: { x: 175.5, y: 470.5, rot: 0 }    // Cuadrado movido a la izquierda
@@ -44,8 +46,8 @@ const transformations = [
     c1: { x: 330.7, y: 230.0, rot: -180 }, // Movido hacia arriba
     c2: { x: 445.0, y: 145.0, rot: 45 },   // Movido derecha y arriba
     c3: { x: 590.0, y: 350.0, rot: 0 },    // Movido derecha
-    c4: { x: 170.0, y: 285.0, rot: -180 }, // Movido izquierda
-    c5: { x: 210.0, y: 416.0, rot: -45 },  // Base movida izquierda
+    c4: { x: 185.0, y: 285.0, rot: -180 }, // Separado del azul hacia la izquierda
+    c5: { x: 195.0, y: 430.0, rot: -45 },  // Paralelogramo movido ligeramente más abajo e izquierda
     c6: { x: 327.7, y: 399.3, rot: -90 },  // Base centro
     c7: { x: 460.0, y: 420.8, rot: -180 }  // Base derecha movida derecha
   }
@@ -57,27 +59,27 @@ let timeline
 const piecesOrder = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']
 const group = new THREE.Group()
 
-// Lee las variables CSS inyectadas en el :root por el ThemeStore
-const getCSSColor = (varName, fallback) => {
-  const rootStyles = getComputedStyle(document.documentElement)
-  let val = rootStyles.getPropertyValue(varName).trim()
-  if (!val) {
-    const loaderStyles = getComputedStyle(document.querySelector('.scene-container'))
-    val = loaderStyles.getPropertyValue(varName).trim()
+// Obtiene el color directamente del ThemeStore (fuente de verdad de la paleta activa)
+// Esto garantiza que los colores del tangram siempre coincidan con el tema configurado
+// (claro, oscuro o daltónico) sin depender del timing del CSS computado.
+const getThemeColor = (key, fallback) => {
+  const colors = themeStore.state.currentColors
+  const colorMap = {
+    '--tangram-c1': colors.primary,
+    '--tangram-c2': colors.accent,
+    '--tangram-c3': colors.secondary,
+    '--tangram-c4': colors.primary,   // mezcla primary + textPrimary
+    '--tangram-c5': colors.accent,    // mezcla accent + textPrimary
+    '--tangram-c6': colors.secondary, // mezcla secondary + textPrimary
+    '--tangram-c7': colors.primary,   // mezcla primary + accent
   }
-  return val || fallback
+  return colorMap[key] || fallback
 }
 
-// Crea un material brillante que soporta variables y color-mix de CSS
+// Crea un material Three.js a partir del color de la paleta activa
 const createMaterial = (varName, fallback) => {
-  const el = document.createElement('div')
-  el.style.color = getCSSColor(varName, fallback)
-  document.body.appendChild(el)
-  const computedColor = getComputedStyle(el).color
-  document.body.removeChild(el)
-  
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(computedColor),
+    color: new THREE.Color(getThemeColor(varName, fallback)),
     metalness: 0.1,
     roughness: 0.15,
     clearcoat: 0.8,
@@ -257,11 +259,11 @@ onMounted(() => {
   }
 
   // Secuencia de tiempo (7.0 segundos en total)
-  animateToFigure(0, 0.2)
+  animateToFigure(2, 0.2)
   explodePieces(2.2)
   animateToFigure(1, 2.8)
   explodePieces(4.8)
-  animateToFigure(2, 5.4)
+  animateToFigure(0, 5.4)
 
   // Cerrar el loader a los 7 segundos
   gsap.delayedCall(7.0, () => {
