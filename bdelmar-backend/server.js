@@ -1021,14 +1021,14 @@ app.get('/api/videos/active', async (req, res) => {
 })
 
 app.post('/api/videos', async (req, res) => {
-  const { name, video_url, subtitle_es_url, subtitle_en_url, audio_url, is_active } = req.body
+  const { name, video_url, subtitle_es_url, subtitle_en_url, audio_url, audio_url_2, is_active } = req.body
   try {
     if (is_active) {
       await pool.query('UPDATE videos SET is_active = FALSE')
     }
     const [result] = await pool.query(
-      'INSERT INTO videos (name, video_url, subtitle_es_url, subtitle_en_url, audio_url, is_active) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, video_url, subtitle_es_url || null, subtitle_en_url || null, audio_url || null, is_active ? 1 : 0]
+      'INSERT INTO videos (name, video_url, subtitle_es_url, subtitle_en_url, audio_url, audio_url_2, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, video_url, subtitle_es_url || null, subtitle_en_url || null, audio_url || null, audio_url_2 || null, is_active ? 1 : 0]
     )
     res.json({ success: true, id: result.insertId })
   } catch (err) {
@@ -1038,14 +1038,14 @@ app.post('/api/videos', async (req, res) => {
 
 app.put('/api/videos/:id', async (req, res) => {
   const { id } = req.params
-  const { name, video_url, subtitle_es_url, subtitle_en_url, audio_url, is_active } = req.body
+  const { name, video_url, subtitle_es_url, subtitle_en_url, audio_url, audio_url_2, is_active } = req.body
   try {
     if (is_active) {
       await pool.query('UPDATE videos SET is_active = FALSE')
     }
     await pool.query(
-      'UPDATE videos SET name = ?, video_url = ?, subtitle_es_url = ?, subtitle_en_url = ?, audio_url = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
-      [name, video_url, subtitle_es_url || null, subtitle_en_url || null, audio_url || null, is_active ? 1 : 0, id]
+      'UPDATE videos SET name = ?, video_url = ?, subtitle_es_url = ?, subtitle_en_url = ?, audio_url = ?, audio_url_2 = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [name, video_url, subtitle_es_url || null, subtitle_en_url || null, audio_url || null, audio_url_2 || null, is_active ? 1 : 0, id]
     )
     res.json({ success: true })
   } catch (err) {

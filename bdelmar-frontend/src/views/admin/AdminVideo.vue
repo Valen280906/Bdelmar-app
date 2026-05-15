@@ -13,6 +13,7 @@ const form = ref({
   subtitle_es_url: '',
   subtitle_en_url: '',
   audio_url: '',
+  audio_url_2: '',
   is_active: false
 })
 
@@ -20,7 +21,8 @@ const fileInputs = ref({
   video: null,
   subEs: null,
   subEn: null,
-  audio: null
+  audio: null,
+  audio2: null
 })
 
 const uploadLoading = ref(false)
@@ -51,16 +53,16 @@ onMounted(() => {
 
 function openAddModal() {
   form.value = {
-    id: null, name: '', video_url: '', subtitle_es_url: '', subtitle_en_url: '', audio_url: '', is_active: false
+    id: null, name: '', video_url: '', subtitle_es_url: '', subtitle_en_url: '', audio_url: '', audio_url_2: '', is_active: false
   }
-  fileInputs.value = { video: null, subEs: null, subEn: null, audio: null }
+  fileInputs.value = { video: null, subEs: null, subEn: null, audio: null, audio2: null }
   modalTitle.value = 'Subir Nuevo Video'
   showModal.value = true
 }
 
 function openEditModal(video) {
   form.value = { ...video, is_active: !!video.is_active }
-  fileInputs.value = { video: null, subEs: null, subEn: null, audio: null }
+  fileInputs.value = { video: null, subEs: null, subEn: null, audio: null, audio2: null }
   modalTitle.value = 'Editar Video'
   showModal.value = true
 }
@@ -84,6 +86,7 @@ async function saveVideo() {
     if (fileInputs.value.subEs) form.value.subtitle_es_url = await uploadFile(fileInputs.value.subEs)
     if (fileInputs.value.subEn) form.value.subtitle_en_url = await uploadFile(fileInputs.value.subEn)
     if (fileInputs.value.audio) form.value.audio_url = await uploadFile(fileInputs.value.audio)
+    if (fileInputs.value.audio2) form.value.audio_url_2 = await uploadFile(fileInputs.value.audio2)
 
     const url = form.value.id 
       ? `http://localhost:3001/api/videos/${form.value.id}` 
@@ -270,31 +273,47 @@ function getFilename(url) {
             <label>Nombre del Video</label>
             <input type="text" v-model="form.name" required />
           </div>
-          <div class="form-group">
-            <label>
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
               <input type="checkbox" v-model="form.is_active" /> Mostrar en el Home (Reemplazará al actual activo)
             </label>
           </div>
-          <hr/>
+          
+          <div class="form-section-title">Video Principal</div>
           <div class="form-group">
             <label>Archivo de Video (.mp4)</label>
-            <input type="file" accept="video/mp4" @change="e => handleFileChange('video', e)" :required="!form.video_url" />
+            <input type="file" accept="video/mp4" @change="e => handleFileChange('video', e)" :required="!form.video_url" class="file-input" />
             <small class="text-muted" v-if="form.video_url">Actual: {{ getFilename(form.video_url) }}</small>
           </div>
-          <div class="form-group">
-            <label>Subtítulos Español (.vtt)</label>
-            <input type="file" accept=".vtt" @change="e => handleFileChange('subEs', e)" />
-            <small class="text-muted" v-if="form.subtitle_es_url">Actual: {{ getFilename(form.subtitle_es_url) }}</small>
-          </div>
-          <div class="form-group">
-            <label>Subtítulos Inglés (.vtt)</label>
-            <input type="file" accept=".vtt" @change="e => handleFileChange('subEn', e)" />
-            <small class="text-muted" v-if="form.subtitle_en_url">Actual: {{ getFilename(form.subtitle_en_url) }}</small>
-          </div>
-          <div class="form-group">
-            <label>Pista de Audio Alternativa Voces/IA (.mp3)</label>
-            <input type="file" accept="audio/*" @change="e => handleFileChange('audio', e)" />
-            <small class="text-muted" v-if="form.audio_url">Actual: {{ getFilename(form.audio_url) }}</small>
+
+          <div class="form-grid">
+            <div class="grid-column">
+              <div class="form-section-title">Subtítulos</div>
+              <div class="form-group">
+                <label>Español (.vtt)</label>
+                <input type="file" accept=".vtt" @change="e => handleFileChange('subEs', e)" class="file-input" />
+                <small class="text-muted" v-if="form.subtitle_es_url">Actual: {{ getFilename(form.subtitle_es_url) }}</small>
+              </div>
+              <div class="form-group">
+                <label>Inglés (.vtt)</label>
+                <input type="file" accept=".vtt" @change="e => handleFileChange('subEn', e)" class="file-input" />
+                <small class="text-muted" v-if="form.subtitle_en_url">Actual: {{ getFilename(form.subtitle_en_url) }}</small>
+              </div>
+            </div>
+
+            <div class="grid-column">
+              <div class="form-section-title">Pistas de Audio Alternativas</div>
+              <div class="form-group">
+                <label>Pista de Audio 1 (.mp3)</label>
+                <input type="file" accept="audio/*" @change="e => handleFileChange('audio', e)" class="file-input" />
+                <small class="text-muted" v-if="form.audio_url">Actual: {{ getFilename(form.audio_url) }}</small>
+              </div>
+              <div class="form-group">
+                <label>Pista de Audio 2 (.mp3)</label>
+                <input type="file" accept="audio/*" @change="e => handleFileChange('audio2', e)" class="file-input" />
+                <small class="text-muted" v-if="form.audio_url_2">Actual: {{ getFilename(form.audio_url_2) }}</small>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn-secondary" @click="showModal = false">Cancelar</button>
@@ -395,10 +414,10 @@ function getFilename(url) {
   display: flex; justify-content: center; align-items: center; padding: 1rem;
 }
 .modal-content {
-  background: var(--color-bg-card); border-radius: 12px; width: 100%; max-width: 500px;
+  background: var(--color-bg-card); border-radius: 12px; width: 100%; max-width: 750px;
   max-height: 90vh; display: flex; flex-direction: column;
 }
-.modal-lg { max-width: 800px; }
+.modal-lg { max-width: 850px; }
 .modal-header {
   padding: 1.2rem 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.1);
   display: flex; justify-content: space-between; align-items: center;
@@ -408,9 +427,29 @@ function getFilename(url) {
 .modal-body { padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
 .form-group label { font-size: 0.9rem; font-weight: 600; color: var(--color-text-primary); }
-.form-group input[type="text"], .form-group input[type="file"] {
+.form-group input[type="text"] {
   padding: 0.6rem; border: 1px solid rgba(128,128,128,0.3); border-radius: 6px; background: var(--color-bg-page); color: var(--color-text-primary);
 }
+.file-input {
+  padding: 0.5rem; border: 1px dashed rgba(128,128,128,0.5); border-radius: 6px; background: rgba(128,128,128,0.02); cursor: pointer; color: var(--color-text-primary);
+}
+.checkbox-group { margin-bottom: 0.5rem; }
+.checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: normal; }
+
+.form-section-title {
+  font-size: 1rem; font-weight: 700; color: var(--color-primary); margin-top: 0.5rem; margin-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(128,128,128,0.1); padding-bottom: 0.3rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.grid-column {
+  display: flex; flex-direction: column; gap: 1rem;
+}
+
 .modal-footer { padding: 1.2rem 1.5rem; border-top: 1px solid rgba(128,128,128,0.1); display: flex; justify-content: flex-end; gap: 1rem; }
 
 .btn-primary { background: var(--color-primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; }

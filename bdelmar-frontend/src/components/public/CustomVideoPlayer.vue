@@ -5,13 +5,14 @@ const videoData = ref(null)
 const isLoading = ref(true)
 
 const videoRef = ref(null)
-const audioRef = ref(null)
+const audioRef = ref(null)   // Audio 1
+const audioRef2 = ref(null)  // Audio 2
 
 const isPlaying = ref(false)
-const volume = ref(1) // 0 a 1
+const volume = ref(1)
 const isMuted = ref(false)
-const currentSubtitle = ref('off') // 'off', 'es', 'en'
-const currentAudioTrack = ref('original') // 'original', 'alternative'
+const currentSubtitle = ref('off')
+const currentAudioTrack = ref('original') // 'original' | 'audio1' | 'audio2'
 
 // Progress / seek
 const currentTime = ref(0)
@@ -79,15 +80,13 @@ function togglePlay() {
   if (!videoRef.value) return
   if (videoRef.value.paused) {
     videoRef.value.play()
-    if (audioRef.value && currentAudioTrack.value === 'alternative') {
-      audioRef.value.play()
-    }
+    if (audioRef.value && currentAudioTrack.value === 'audio1') audioRef.value.play()
+    if (audioRef2.value && currentAudioTrack.value === 'audio2') audioRef2.value.play()
     isPlaying.value = true
   } else {
     videoRef.value.pause()
-    if (audioRef.value) {
-      audioRef.value.pause()
-    }
+    if (audioRef.value) audioRef.value.pause()
+    if (audioRef2.value) audioRef2.value.pause()
     isPlaying.value = false
   }
 }
@@ -118,43 +117,47 @@ function updateMediaVolume() {
     videoRef.value.volume = currentAudioTrack.value === 'original' ? actualVolume : 0
   }
   if (audioRef.value) {
-    audioRef.value.volume = currentAudioTrack.value === 'alternative' ? actualVolume : 0
+    audioRef.value.volume = currentAudioTrack.value === 'audio1' ? actualVolume : 0
+  }
+  if (audioRef2.value) {
+    audioRef2.value.volume = currentAudioTrack.value === 'audio2' ? actualVolume : 0
   }
 }
 
 watch(currentAudioTrack, (newTrack) => {
+  // Pausar todos los audios alternativos
+  if (audioRef.value) audioRef.value.pause()
+  if (audioRef2.value) audioRef2.value.pause()
+
   updateMediaVolume()
-  if (videoRef.value && audioRef.value) {
-    if (newTrack === 'alternative') {
-      audioRef.value.currentTime = videoRef.value.currentTime
-      if (!videoRef.value.paused) {
-        audioRef.value.play()
-      }
-    } else {
-      audioRef.value.pause()
-    }
+
+  if (!videoRef.value || videoRef.value.paused) return
+
+  if (newTrack === 'audio1' && audioRef.value) {
+    audioRef.value.currentTime = videoRef.value.currentTime
+    audioRef.value.play()
+  } else if (newTrack === 'audio2' && audioRef2.value) {
+    audioRef2.value.currentTime = videoRef.value.currentTime
+    audioRef2.value.play()
   }
 })
 
-// === SYNC AUDIO ALTERNATIVO ===
 function onVideoPlay() {
   isPlaying.value = true
-  if (currentAudioTrack.value === 'alternative' && audioRef.value) {
-    audioRef.value.play()
-  }
+  if (currentAudioTrack.value === 'audio1' && audioRef.value) audioRef.value.play()
+  if (currentAudioTrack.value === 'audio2' && audioRef2.value) audioRef2.value.play()
 }
 
 function onVideoPause() {
   isPlaying.value = false
-  if (audioRef.value) {
-    audioRef.value.pause()
-  }
+  if (audioRef.value) audioRef.value.pause()
+  if (audioRef2.value) audioRef2.value.pause()
 }
 
 function onVideoSeeked() {
-  if (audioRef.value) {
-    audioRef.value.currentTime = videoRef.value.currentTime
-  }
+  const t = videoRef.value?.currentTime || 0
+  if (audioRef.value) audioRef.value.currentTime = t
+  if (audioRef2.value) audioRef2.value.currentTime = t
 }
 
 function onVideoTimeUpdate() {
@@ -162,11 +165,12 @@ function onVideoTimeUpdate() {
     currentTime.value = videoRef.value.currentTime
   }
   // Hard sync si la diferencia es mayor a 0.25 seg
-  if (currentAudioTrack.value === 'alternative' && audioRef.value && videoRef.value) {
-    const diff = Math.abs(audioRef.value.currentTime - videoRef.value.currentTime)
-    if (diff > 0.25) {
-      audioRef.value.currentTime = videoRef.value.currentTime
-    }
+  const t = videoRef.value?.currentTime || 0
+  if (currentAudioTrack.value === 'audio1' && audioRef.value) {
+    if (Math.abs(audioRef.value.currentTime - t) > 0.25) audioRef.value.currentTime = t
+  }
+  if (currentAudioTrack.value === 'audio2' && audioRef2.value) {
+    if (Math.abs(audioRef2.value.currentTime - t) > 0.25) audioRef2.value.currentTime = t
   }
 }
 
@@ -247,11 +251,19 @@ onMounted(() => {
           Tu navegador no soporta el tag de video.
         </video>
 
-        <!-- Elemento oculto para audio alternativo -->
+        <!-- Elemento oculto para audio alternativo 1 -->
         <audio 
           v-if="videoData.audio_url"
           ref="audioRef"
           :src="videoData.audio_url"
+          preload="auto"
+        ></audio>
+
+        <!-- Elemento oculto para audio alternativo 2 -->
+        <audio 
+          v-if="videoData.audio_url_2"
+          ref="audioRef2"
+          :src="videoData.audio_url_2"
           preload="auto"
         ></audio>
 
@@ -297,8 +309,9 @@ onMounted(() => {
         <div class="track-group">
           <label class="ctrl-label">Audio:</label>
           <select v-model="currentAudioTrack" class="ctrl-select">
-            <option value="original">Original</option>
-            <option v-if="videoData.audio_url" value="alternative">Voces IA</option>
+            <option value="original">🎬 Original</option>
+            <option v-if="videoData.audio_url" value="audio1">🎙️ Audio 1</option>
+            <option v-if="videoData.audio_url_2" value="audio2">🎙️ Audio 2</option>
           </select>
         </div>
 
