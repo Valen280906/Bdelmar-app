@@ -253,7 +253,7 @@ const validateAndUpload = (file) => {
   const img = new Image()
   img.src = url
   img.onload = () => {
-    if (img.width !== 1000 || img.height !== 400) {
+    if (img.width !== 800 || img.height !== 800) {
       pendingFile.value = file
       cropImageSrc.value = url
       showCropModal.value = true
@@ -268,7 +268,7 @@ const startCropper = () => {
   nextTick(() => {
     if (cropperImgRef.value) {
       cropperInstance = new Cropper(cropperImgRef.value, {
-        aspectRatio: 2.5, // 1000/400
+        aspectRatio: 1, // 800/800
         viewMode: 1,
       })
     }
@@ -277,7 +277,7 @@ const startCropper = () => {
 
 const performCrop = () => {
   if (!cropperInstance) return
-  cropperInstance.getCroppedCanvas({ width: 1000, height: 400 }).toBlob((blob) => {
+  cropperInstance.getCroppedCanvas({ width: 800, height: 800 }).toBlob((blob) => {
     const newFile = new File([blob], pendingFile.value.name, { type: 'image/jpeg' })
     uploadFile(newFile)
     closeCropper()
@@ -675,7 +675,7 @@ onMounted(() => {
         </div>
         <div class="modal-body">
           <div class="warning-alert">
-            <strong>Atención:</strong> La imagen se recortará para que encaje perfectamente en el catálogo de productos del carrusel. Asegúrate de modificar y ajustar el área de recorte para que el producto se vea perfecto. (Tamaño requerido: 1000x400px)
+            <strong>Atención:</strong> La imagen se recortará para que encaje perfectamente en el catálogo de productos del carrusel. Asegúrate de modificar y ajustar el área de recorte para que el producto se vea perfecto. (Tamaño requerido: 800x800px)
           </div>
           <div style="width: 100%; height: 50vh; background: #000; display:flex; justify-content:center; overflow:hidden;">
             <img ref="cropperImgRef" :src="cropImageSrc" style="max-width: 100%;" />
