@@ -674,7 +674,9 @@ onMounted(() => {
           <button class="modal-close" @click="closeCropper">×</button>
         </div>
         <div class="modal-body">
-          <p class="text-muted small" style="margin-bottom: 1rem;">Ajusta la imagen a la proporción requerida para mantener la uniformidad en el inicio.</p>
+          <div class="warning-alert">
+            <strong>Atención:</strong> La imagen se recortará para que encaje perfectamente en el catálogo de productos del carrusel. Asegúrate de modificar y ajustar el área de recorte para que el producto se vea perfecto. (Tamaño requerido: 1000x400px)
+          </div>
           <div style="width: 100%; height: 50vh; background: #000; display:flex; justify-content:center; overflow:hidden;">
             <img ref="cropperImgRef" :src="cropImageSrc" style="max-width: 100%;" />
           </div>
@@ -712,6 +714,17 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   border: 1px solid rgba(128,128,128,0.1);
   overflow: hidden;
+}
+
+.warning-alert {
+  background: rgba(229, 149, 36, 0.1);
+  color: var(--color-accent);
+  border-left: 4px solid var(--color-accent);
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 /* ─── DataTables Toolbar ───────────────────────────────────── */

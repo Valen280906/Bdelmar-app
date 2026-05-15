@@ -67,6 +67,9 @@ onMounted(async () => {
       if (videoData.value.audio_url && videoData.value.audio_url.startsWith('/')) {
         videoData.value.audio_url = `http://localhost:3001${videoData.value.audio_url}`
       }
+      if (videoData.value.audio_url_2 && videoData.value.audio_url_2.startsWith('/')) {
+        videoData.value.audio_url_2 = `http://localhost:3001${videoData.value.audio_url_2}`
+      }
     }
   } catch(e) {
     console.error('Error fetching active video:', e)
@@ -397,11 +400,18 @@ onMounted(() => {
 
 /* Styling native subtitles if supported via CSS pseudo-elements */
 .custom-video::cue {
-  background: rgba(0,0,0,0.7);
-  color: white;
-  font-family: sans-serif;
-  font-size: 1.2rem;
-  padding: 4px 8px;
+  background: transparent;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-shadow: 
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 2px 4px rgba(0,0,0,0.8);
+  padding: 0.5rem;
 }
 
 .play-overlay {
