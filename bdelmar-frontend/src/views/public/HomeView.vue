@@ -7,6 +7,8 @@ import LandingNosotros from '@/components/public/LandingNosotros.vue'
 import LandingServices from '@/components/public/LandingServices.vue'
 import LandingFooter from '@/components/public/LandingFooter.vue'
 import LegalModal from '@/components/public/LegalModal.vue'
+import CustomVideoPlayer from '@/components/public/CustomVideoPlayer.vue'
+import ProductosSection from '@/components/user/ProductosSection.vue'
 
 import LoaderTangram from '@/components/public/LoaderTangram.vue'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -39,6 +41,8 @@ function onLoaderDone() {
     
     <main>
       <LandingBanner />
+      <CustomVideoPlayer />
+      <ProductosSection />
       <LandingCoupons />
       <LandingNosotros />
       <LandingServices />

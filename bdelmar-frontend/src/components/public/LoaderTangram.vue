@@ -8,7 +8,8 @@ const emit = defineEmits(['done'])
 const canvasRef = shallowRef(null)
 const themeStore = useThemeStore()
 
-// Shape geometries (Centered rigid bodies)
+// Figuras  vértices 2D de la pieza en pares [x, y, x, y, ...]. 
+// se convierte a THREE.Shape (polígono 2D) que luego se extruye para crear volumen 3D.
 const shapesData = {
   c1: [-169.3,-84.7, 84.7,169.3, 84.7,-84.7], // Blue Large
   c2: [-179.7,59.7, 179.3,59.7, 0.3,-119.3], // Magenta Large
@@ -197,7 +198,7 @@ onMounted(() => {
   }
   window.addEventListener('resize', onResize)
 
-  // 6. COREOGRAFÍA GSAP
+  // 6. COREOGRAFÍA GSAP 3D
   timeline = gsap.timeline()
   
   const getTransform = (figIdx, key) => {
@@ -210,7 +211,7 @@ onMounted(() => {
       rotationZ: -t.rot * (Math.PI / 180) 
     }
   }
-
+// 6. COREOGRAFÍA GSAP 3D configuracion del tiempo
   const animateToFigure = (figIdx, delayOffset = 0) => {
     piecesOrder.forEach((key, index) => {
       const target = getTransform(figIdx, key)

@@ -147,5 +147,18 @@ CREATE TABLE IF NOT EXISTS coupons (
 );
 
 
+-- Tabla de videos para reproductor multimedia
+CREATE TABLE IF NOT EXISTS videos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    video_url VARCHAR(255) NOT NULL,
+    subtitle_es_url VARCHAR(255) NULL,
+    subtitle_en_url VARCHAR(255) NULL,
+    audio_url VARCHAR(255) NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- Restaurar modo seguro
 SET SQL_SAFE_UPDATES=@OLD_SQL_SAFE_UPDATES;

@@ -57,6 +57,11 @@ const routes = [
                 name: 'InvoiceView',
                 component: () => import('../views/admin/InvoiceView.vue'),
             },
+            {
+                path: 'video',
+                name: 'AdminVideo',
+                component: () => import('../views/admin/AdminVideo.vue'),
+            },
         ],
     },
     {

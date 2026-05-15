@@ -1,5 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import Cropper from 'cropperjs'
+import 'cropperjs/dist/cropper.css'
 
 const products = ref([])
 const isLoading = ref(true)
@@ -39,7 +41,6 @@ function setPage(n) {
 }
 
 // Reset page to 1 when search changes
-import { watch } from 'vue'
 watch(searchQuery, () => { currentPage.value = 1 })
 
 // Estado del formulario modal
@@ -229,16 +230,76 @@ const handleDrop = async (e) => {
   isDragOver.value = false
   const file = e.dataTransfer.files[0]
   if (file && file.type.startsWith('image/')) {
-    await uploadFile(file)
+    validateAndUpload(file)
   }
 }
 
 const handleFileSelect = async (e) => {
   const file = e.target.files[0]
   if (file) {
-    await uploadFile(file)
+    validateAndUpload(file)
   }
 }
+
+// === CROPPER LOGIC ===
+const showCropModal = ref(false)
+const cropImageSrc = ref('')
+const pendingFile = ref(null)
+let cropperInstance = null
+const cropperImgRef = ref(null)
+
+const validateAndUpload = (file) => {
+  const url = URL.createObjectURL(file)
+  const img = new Image()
+  img.src = url
+  img.onload = () => {
+    if (img.width !== 1000 || img.height !== 400) {
+      pendingFile.value = file
+      cropImageSrc.value = url
+      showCropModal.value = true
+    } else {
+      uploadFile(file)
+    }
+  }
+}
+
+const startCropper = () => {
+  if (cropperInstance) cropperInstance.destroy()
+  nextTick(() => {
+    if (cropperImgRef.value) {
+      cropperInstance = new Cropper(cropperImgRef.value, {
+        aspectRatio: 2.5, // 1000/400
+        viewMode: 1,
+      })
+    }
+  })
+}
+
+const performCrop = () => {
+  if (!cropperInstance) return
+  cropperInstance.getCroppedCanvas({ width: 1000, height: 400 }).toBlob((blob) => {
+    const newFile = new File([blob], pendingFile.value.name, { type: 'image/jpeg' })
+    uploadFile(newFile)
+    closeCropper()
+  }, 'image/jpeg', 0.9)
+}
+
+const closeCropper = () => {
+  showCropModal.value = false
+  cropImageSrc.value = ''
+  pendingFile.value = null
+  if (cropperInstance) {
+    cropperInstance.destroy()
+    cropperInstance = null
+  }
+}
+
+watch(showCropModal, (newVal) => {
+  if (newVal) {
+    startCropper()
+  }
+})
+// =====================
 
 const uploadFile = async (file) => {
   uploadLoading.value = true
@@ -602,6 +663,25 @@ onMounted(() => {
         </div>
         <div class="modal-footer" style="justify-content: center; border-top: none; padding-bottom: 2rem;">
           <button type="button" class="btn-primary" @click="alertModal.show = false" style="min-width: 120px;">Entendido</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal Cropper JS -->
+    <div class="modal-overlay" v-show="showCropModal" style="z-index: 1300;">
+      <div class="modal-content shadow-card modal-lg">
+        <div class="modal-header">
+          <h3 class="modal-title">Recortar Imagen de Producto</h3>
+          <button class="modal-close" @click="closeCropper">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small" style="margin-bottom: 1rem;">Ajusta la imagen a la proporción requerida para mantener la uniformidad en el inicio.</p>
+          <div style="width: 100%; height: 50vh; background: #000; display:flex; justify-content:center; overflow:hidden;">
+            <img ref="cropperImgRef" :src="cropImageSrc" style="max-width: 100%;" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" @click="closeCropper">Cancelar</button>
+          <button type="button" class="btn-primary" @click="performCrop">Aplicar Recorte y Subir</button>
         </div>
       </div>
     </div>

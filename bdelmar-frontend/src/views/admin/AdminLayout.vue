@@ -15,6 +15,7 @@ const navItems = [
   { icon: 'coupons', label: 'Cupones', path: '/admin/cupones' },
   { icon: 'payments', label: 'Pagos', path: '/admin/pagos' },
   { icon: 'facturas', label: 'Facturas', path: '/admin/facturas' },
+  { icon: 'video', label: 'Video', path: '/admin/video' },
 ]
 
 function isActive(path) {
@@ -73,6 +74,10 @@ function logout() {
           <svg v-if="item.icon === 'coupons'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
             <line x1="4" y1="22" x2="4" y2="15"></line>
+          </svg>
+          <svg v-if="item.icon === 'video'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
           </svg>
           <span v-if="sidebarOpen">{{ item.label }}</span>
         </router-link>

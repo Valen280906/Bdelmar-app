@@ -987,6 +987,125 @@ app.post('/api/paypal/capture-order', async (req, res) => {
 });
 
 // ============================================================
+// === VIDEOS AND VTT =========================================
+// ============================================================
+
+app.post('/api/upload-media', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No se subió ningún archivo' })
+  const fileUrl = `/uploads/${req.file.filename}`
+  res.json({ success: true, fileUrl, filename: req.file.filename })
+})
+
+app.get('/api/videos', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM videos ORDER BY id DESC')
+    res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error('GET /api/videos error:', err.message)
+    res.status(500).json({ success: false, error: 'Error obteniendo videos' })
+  }
+})
+
+app.get('/api/videos/active', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM videos WHERE is_active = TRUE ORDER BY id DESC LIMIT 1')
+    res.json({ success: true, data: rows[0] || null })
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Error obteniendo video activo' })
+  }
+})
+
+app.post('/api/videos', async (req, res) => {
+  const { name, video_url, subtitle_es_url, subtitle_en_url, audio_url, is_active } = req.body
+  try {
+    if (is_active) {
+      await pool.query('UPDATE videos SET is_active = FALSE')
+    }
+    const [result] = await pool.query(
+      'INSERT INTO videos (name, video_url, subtitle_es_url, subtitle_en_url, audio_url, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, video_url, subtitle_es_url || null, subtitle_en_url || null, audio_url || null, is_active ? 1 : 0]
+    )
+    res.json({ success: true, id: result.insertId })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.put('/api/videos/:id', async (req, res) => {
+  const { id } = req.params
+  const { name, video_url, subtitle_es_url, subtitle_en_url, audio_url, is_active } = req.body
+  try {
+    if (is_active) {
+      await pool.query('UPDATE videos SET is_active = FALSE')
+    }
+    await pool.query(
+      'UPDATE videos SET name = ?, video_url = ?, subtitle_es_url = ?, subtitle_en_url = ?, audio_url = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [name, video_url, subtitle_es_url || null, subtitle_en_url || null, audio_url || null, is_active ? 1 : 0, id]
+    )
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.delete('/api/videos/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM videos WHERE id = ?', [req.params.id])
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/vtt/:filename', (req, res) => {
+  const filepath = path.join(__dirname, 'uploads', req.params.filename)
+  if (!fs.existsSync(filepath)) {
+    return res.status(404).json({ success: false, error: 'Archivo no encontrado' })
+  }
+  const content = fs.readFileSync(filepath, 'utf8')
+  // Handle both \r\n and \n
+  const lines = content.replace(/\r/g, '').split('\n')
+  const cues = []
+  let currentCue = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.includes('-->')) {
+      const parts = line.split('-->')
+      currentCue = { start: parts[0].trim(), end: parts[1].trim(), text: '' }
+    } else if (currentCue && line !== '') {
+      currentCue.text += (currentCue.text ? '\n' : '') + line
+    } else if (currentCue && line === '') {
+      cues.push(currentCue)
+      currentCue = null
+    }
+  }
+  if (currentCue) cues.push(currentCue)
+
+  res.json({ success: true, data: cues })
+})
+
+app.post('/api/vtt/:filename', (req, res) => {
+  const filepath = path.join(__dirname, 'uploads', req.params.filename)
+  const { cues } = req.body
+  if (!cues || !Array.isArray(cues)) {
+    return res.status(400).json({ success: false, error: 'Datos de subtítulos inválidos' })
+  }
+
+  let vttContent = 'WEBVTT\n\n'
+  cues.forEach(cue => {
+    vttContent += `${cue.start} --> ${cue.end}\n${cue.text}\n\n`
+  })
+
+  try {
+    fs.writeFileSync(filepath, vttContent, 'utf8')
+    res.json({ success: true })
+  } catch(e) {
+    res.status(500).json({ success: false, error: 'No se pudo guardar el archivo' })
+  }
+})
+
+// ============================================================
 // === INICIAR SERVIDOR =======================================
 // ============================================================
 const PORT = process.env.PORT || 3001

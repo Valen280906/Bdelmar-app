@@ -6,6 +6,7 @@ import UserCoupons from '@/components/user/UserCoupons.vue'
 import ServiciosSection from '@/components/user/ServiciosSection.vue'
 import ProductosSection from '@/components/user/ProductosSection.vue'
 import FooterComponent from '@/components/user/FooterComponent.vue'
+import CustomVideoPlayer from '@/components/public/CustomVideoPlayer.vue'
 import { useThemeStore } from '@/stores/useThemeStore'
 import { ref } from 'vue'
 import LoaderTangram from '@/components/public/LoaderTangram.vue'
@@ -30,6 +31,7 @@ function onLoaderDone() {
     
     <main>
       <CarouselBanner id="inicio" />
+      <CustomVideoPlayer />
       <UserCoupons id="cupones" />
       <ServiciosSection id="servicios" />
       <ProductosSection id="productos" />
