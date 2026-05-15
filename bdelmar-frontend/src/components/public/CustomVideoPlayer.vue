@@ -221,6 +221,7 @@ onMounted(() => {
           class="custom-video"
           :src="videoData.video_url"
           preload="metadata"
+          crossorigin="anonymous"
           @play="onVideoPlay"
           @pause="onVideoPause"
           @seeked="onVideoSeeked"

@@ -32,8 +32,13 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage: storage })
 
-// Rutas estáticas
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+// Rutas estáticas — con CORS explícito para que los <track> VTT funcionen entre puertos
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  next()
+}, express.static(path.join(__dirname, 'uploads')))
 
 
 const pool = mysql.createPool({
