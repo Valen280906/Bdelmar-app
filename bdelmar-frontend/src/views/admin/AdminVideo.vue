@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import ConfirmDialog from '../../components/shared/ConfirmDialog.vue'
 
 const videos = ref([])
 const isLoading = ref(true)
@@ -33,6 +34,10 @@ const subEditorCues = ref([])
 const subEditorLang = ref('')
 const subEditorVideo = ref(null)
 const subEditorLoading = ref(false)
+
+// Confirmación de eliminación
+const showDeleteConfirm = ref(false)
+const videoToDelete = ref(null)
 
 const fetchVideos = async () => {
   isLoading.value = true
@@ -113,13 +118,21 @@ async function saveVideo() {
   }
 }
 
-async function deleteVideo(id) {
-  if (!confirm('¿Seguro que deseas eliminar este video?')) return
+function requestDelete(video) {
+  videoToDelete.value = video
+  showDeleteConfirm.value = true
+}
+
+async function confirmDeleteVideo() {
+  if (!videoToDelete.value) return
   try {
-    await fetch(`http://localhost:3001/api/videos/${id}`, { method: 'DELETE' })
+    await fetch(`http://localhost:3001/api/videos/${videoToDelete.value.id}`, { method: 'DELETE' })
     fetchVideos()
   } catch(e) {
     console.error(e)
+  } finally {
+    showDeleteConfirm.value = false
+    videoToDelete.value = null
   }
 }
 
@@ -253,7 +266,7 @@ function getFilename(url) {
             <td>
               <div class="actions-row">
                 <button class="btn-secondary small-btn" @click="openEditModal(v)">Editar</button>
-                <button class="btn-secondary small-btn text-danger" @click="deleteVideo(v.id)">Borrar</button>
+                <button class="btn-secondary small-btn text-danger" @click="requestDelete(v)">Borrar</button>
               </div>
             </td>
           </tr>
@@ -362,6 +375,17 @@ function getFilename(url) {
         </div>
       </div>
     </div>
+
+    <!-- Confirmación de eliminación -->
+    <ConfirmDialog
+      :show="showDeleteConfirm"
+      title="Eliminar Video"
+      :message="`¿Seguro que deseas eliminar el video &quot;${videoToDelete?.name}&quot;?`"
+      confirm-label="Sí, Eliminar"
+      :danger="true"
+      @confirm="confirmDeleteVideo"
+      @cancel="showDeleteConfirm = false"
+    />
 
   </div>
 </template>
