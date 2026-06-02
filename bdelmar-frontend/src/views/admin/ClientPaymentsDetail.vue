@@ -179,7 +179,7 @@ const methodLabel = { paypal: 'PayPal', pagomovil: 'Pago Móvil', efectivo: 'Efe
 .client-avatar {
   width: 56px; height: 56px; border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent, #e59524));
-  color: #fff; font-size: 1.5rem; font-weight: 800;
+  color: var(--color-bg-page, #fff); font-size: 1.5rem; font-weight: 800;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .client-details { flex: 1; }

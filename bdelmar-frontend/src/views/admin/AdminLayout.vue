@@ -225,7 +225,7 @@ function logout() {
   width: 34px; height: 34px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-bg-page, white);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700;
   font-size: 0.85rem;

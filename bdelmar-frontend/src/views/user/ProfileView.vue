@@ -511,7 +511,7 @@ const initials = computed(() => {
   width: 72px; height: 72px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent, #e59524));
-  color: #fff;
+  color: var(--color-bg-page, #fff);
   font-size: 1.6rem; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 0.75rem;
