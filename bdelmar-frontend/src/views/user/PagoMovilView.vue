@@ -477,11 +477,11 @@ const selectedBankColor = computed(() => BANKS.find(b => b.id === emisorBank.val
 .ref-hint { font-size: 0.78rem; color: #888; margin-top: 0.4rem; }
 
 /* Action buttons */
-.btn-next-step { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: var(--color-primary); color: #fff; border: none; border-radius: 10px; padding: 0.85rem 1.5rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: filter 0.2s; }
+.btn-next-step { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: var(--color-primary); color: var(--color-bg-page, #fff); border: none; border-radius: 10px; padding: 0.85rem 1.5rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: filter 0.2s; }
 .btn-next-step:hover { filter: brightness(1.1); }
 .btn-back-step { width: 100%; background: none; border: 1.5px solid rgba(128,128,128,0.2); border-radius: 10px; padding: 0.75rem; font-size: 0.9rem; cursor: pointer; color: var(--color-text-secondary); font-weight: 600; }
 .btn-back-step:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.btn-confirm { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: var(--color-primary); color: #fff; border: none; border-radius: 10px; padding: 0.9rem; font-size: 1rem; font-weight: 800; cursor: pointer; margin-bottom: 0.75rem; transition: filter 0.2s; }
+.btn-confirm { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: var(--color-primary); color: var(--color-bg-page, #fff); border: none; border-radius: 10px; padding: 0.9rem; font-size: 1rem; font-weight: 800; cursor: pointer; margin-bottom: 0.75rem; transition: filter 0.2s; }
 .btn-confirm:disabled { background: var(--color-text-secondary); opacity: 0.5; cursor: not-allowed; }
 .btn-back-link { display: block; text-align: center; background: none; border: none; color: var(--color-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .step2-actions { display: flex; flex-direction: column; gap: 0.75rem; }

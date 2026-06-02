@@ -310,16 +310,22 @@ onMounted(() => {
         <div class="spacer"></div>
 
         <div class="track-group">
-          <label class="ctrl-label">Audio:</label>
+          <label class="ctrl-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px;vertical-align:middle"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            Audio:
+          </label>
           <select v-model="currentAudioTrack" class="ctrl-select">
-            <option value="original">🎬 Original</option>
-            <option v-if="videoData.audio_url" value="audio1">🎙️ Audio 1</option>
-            <option v-if="videoData.audio_url_2" value="audio2">🎙️ Audio 2</option>
+            <option value="original">Original</option>
+            <option v-if="videoData.audio_url" value="audio1">Audio 1</option>
+            <option v-if="videoData.audio_url_2" value="audio2">Audio 2</option>
           </select>
         </div>
 
         <div class="track-group" v-if="videoData.subtitle_es_url || videoData.subtitle_en_url">
-          <label class="ctrl-label">Subtítulos:</label>
+          <label class="ctrl-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px;vertical-align:middle"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9 10H8v2H6v-6h2v2h3v-2h2v6h-2v-2zm8 0h-3v2h-2v-6h2v2h3v-2h2v6h-2v-2z"/></svg>
+            Subtítulos:
+          </label>
           <select v-model="currentSubtitle" class="ctrl-select">
             <option value="off">Apagado</option>
             <option v-if="videoData.subtitle_es_url" value="es">Español</option>
@@ -361,14 +367,14 @@ onMounted(() => {
 
 .video-header h3 {
   margin: 0;
-  color: #fff;
+  color: var(--color-text-primary, #000);
   font-size: 1.1rem;
   font-weight: 600;
 }
 
 .badge-new {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-bg-page, #fff);
   font-size: 0.75rem;
   font-weight: 700;
   padding: 0.25rem 0.75rem;

@@ -144,7 +144,7 @@ const slides = [
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 50%;
   width: 48px; height: 48px;
-  color: white;
+  color: var(--color-bg-page, white);
   transition: background 0.15s, transform 0.15s;
 }
 :deep(.carousel__prev:hover), :deep(.carousel__next:hover) { 

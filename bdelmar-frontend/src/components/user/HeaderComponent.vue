@@ -177,7 +177,7 @@ const navLinks = [
   top: 2px;
   right: 2px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-bg-page, #fff);
   font-size: 0.62rem;
   font-weight: 800;
   border-radius: 50%;

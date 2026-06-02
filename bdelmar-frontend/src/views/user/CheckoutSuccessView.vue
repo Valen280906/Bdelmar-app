@@ -461,7 +461,7 @@ onMounted(async () => {
   font-size: 0.9rem; font-weight: 700; border-radius: 10px; cursor: pointer;
   transition: all 0.2s; border: none;
 }
-.btn-primary { background: #003366; color: #fff; }
+.btn-primary { background: #003366; color: var(--color-bg-page, #fff); }
 .btn-primary:hover { background: #002244; }
 .btn-outline { background: transparent; border: 1.5px solid #ccc; color: #333; }
 .btn-outline:hover { border-color: #003366; color: #003366; }

@@ -474,7 +474,7 @@ const BDELMAR_RIF = 'J-00000000-0'
 .method-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
 .paypal-icon { background: #003087; color: #fff; font-weight: 900; font-size: 1.1rem; }
 .movil-icon { background: #e59524; }
-.method-badge { margin-left: auto; font-size: 0.72rem; font-weight: 700; background: var(--color-primary); color: #fff; border-radius: 6px; padding: 0.15rem 0.4rem; }
+.method-badge { margin-left: auto; font-size: 0.72rem; font-weight: 700; background: var(--color-primary); color: var(--color-bg-page, #fff); border-radius: 6px; padding: 0.15rem 0.4rem; }
 .method-badge.alt { background: #e59524; }
 
 .payment-box { border: 1.5px solid rgba(128,128,128,0.15); border-radius: 14px; padding: 1.25rem; margin-bottom: 1.5rem; }
@@ -499,7 +499,7 @@ const BDELMAR_RIF = 'J-00000000-0'
 
 .btn-next {
   display: flex; align-items: center; gap: 0.5rem; flex: 1;
-  background: var(--color-primary); color: #fff; border: none;
+  background: var(--color-primary); color: var(--color-bg-page, #fff); border: none;
   border-radius: 12px; padding: 0.85rem 1.5rem;
   font-size: 1rem; font-weight: 700; cursor: pointer; justify-content: center;
   transition: all 0.2s;

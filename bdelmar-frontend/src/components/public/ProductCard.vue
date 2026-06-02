@@ -397,7 +397,7 @@ onMounted(() => {
 }
 
 .action-btn {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--color-bg-page, rgba(255, 255, 255, 0.9));
   border: none;
   width: 40px;
   height: 40px;
@@ -413,7 +413,7 @@ onMounted(() => {
 
 .action-btn:hover {
   transform: scale(1.05);
-  background: #ffffff;
+  background: var(--color-bg-card, #ffffff);
 }
 
 /* Dropdown Redes Sociales */
@@ -513,7 +513,7 @@ onMounted(() => {
 
 .status-badge {
   background: var(--pc-primary);
-  color: #fff;
+  color: var(--color-bg-page, #fff);
   font-size: 0.65rem;
   font-weight: 700;
   padding: 0.2rem 0.5rem;
@@ -712,7 +712,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   background: var(--pc-primary);
-  color: #ffffff;
+  color: var(--color-bg-page, #ffffff);
   border: none;
   padding: 0.6rem 1rem;
   border-radius: 6px;

@@ -204,7 +204,7 @@ const breakpoints = {
 /* Vue3 Carousel Controls Optimization */
 :deep(.carousel__prev), :deep(.carousel__next) {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-bg-page, white);
   border-radius: 50%;
   width: 40px; height: 40px;
 }

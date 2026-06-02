@@ -102,8 +102,8 @@ function goToRegister() {
   letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 2rem;
-  border: 1px solid color-mix(in srgb, var(--color-text-primary, white) 40%, transparent);
-  color: var(--color-text-primary, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-bg-page, white) 40%, transparent);
+  color: var(--color-bg-page, #fff);
 }
 
 .title {
@@ -112,13 +112,13 @@ function goToRegister() {
   line-height: 1.1;
   margin-bottom: 1.5rem;
   text-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  color: var(--color-text-primary, #fff);
+  color: var(--color-bg-page, #fff);
 }
 
 .subtitle {
   font-size: clamp(1.1rem, 2vw, 1.4rem);
   font-weight: 400;
-  color: color-mix(in srgb, var(--color-text-primary, #fff) 90%, transparent);
+  color: color-mix(in srgb, var(--color-bg-page, #fff) 90%, transparent);
   max-width: 700px;
   margin-bottom: 3rem;
   line-height: 1.6;
@@ -131,8 +131,8 @@ function goToRegister() {
   margin-bottom: 4rem;
 }
 .btn-primary {
-  background: white;
-  color: var(--color-primary, #1a91db);
+  background: var(--color-primary, #1a91db);
+  color: var(--color-bg-page, white);
   border: none;
   padding: 1rem 2.5rem;
   border-radius: 50px;
@@ -146,9 +146,9 @@ function goToRegister() {
   box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 .btn-secondary {
-  background: color-mix(in srgb, var(--color-text-primary, white) 10%, transparent);
-  color: var(--color-text-primary, white);
-  border: 2px solid var(--color-text-primary, white);
+  background: color-mix(in srgb, var(--color-bg-page, white) 10%, transparent);
+  color: var(--color-bg-page, white);
+  border: 2px solid var(--color-bg-page, white);
   padding: 1rem 2.5rem;
   border-radius: 50px;
   font-size: 1.1rem;
@@ -159,7 +159,7 @@ function goToRegister() {
   transition: background 0.2s;
 }
 .btn-secondary:hover {
-  background: color-mix(in srgb, var(--color-text-primary, white) 20%, transparent);
+  background: color-mix(in srgb, var(--color-bg-page, white) 20%, transparent);
 }
 
 .stats {
@@ -179,11 +179,11 @@ function goToRegister() {
 .stat-number {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-bg-page, #fff);
 }
 .stat-text {
   font-size: 0.85rem;
-  color: color-mix(in srgb, var(--color-text-primary, white) 80%, transparent);
+  color: color-mix(in srgb, var(--color-bg-page, white) 80%, transparent);
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 600;

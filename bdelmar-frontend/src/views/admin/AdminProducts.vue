@@ -241,7 +241,7 @@ const handleFileSelect = async (e) => {
   }
 }
 
-// === CROPPER LOGIC ===
+// CROPPER LOGIC 
 const showCropModal = ref(false)
 const cropImageSrc = ref('')
 const pendingFile = ref(null)

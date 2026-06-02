@@ -652,7 +652,7 @@ function goCheckout() {
 .coupon-input { flex: 1; border: 1.5px solid rgba(128,128,128,0.15); border-radius: 10px; padding: 0.65rem 1rem; font-size: 0.9rem; background: var(--color-bg-page); color: var(--color-text-primary); font-family: inherit; outline: none; transition: border-color 0.2s; }
 .coupon-input::placeholder { color: var(--color-text-secondary); opacity: 0.6; }
 .coupon-input:focus { border-color: var(--color-primary); background: var(--color-bg-card); }
-.coupon-btn { background: var(--color-primary); color: #fff; border: none; border-radius: 10px; padding: 0.65rem 1.25rem; font-weight: 700; font-size: 0.88rem; cursor: pointer; white-space: nowrap; transition: filter 0.2s; }
+.coupon-btn { background: var(--color-primary); color: var(--color-bg-page, #fff); border: none; border-radius: 10px; padding: 0.65rem 1.25rem; font-weight: 700; font-size: 0.88rem; cursor: pointer; white-space: nowrap; transition: filter 0.2s; }
 .coupon-btn:hover { filter: brightness(1.1); }
 .coupon-msg { font-size: 0.8rem; margin: 0.5rem 0 0; color: #c62828; }
 .coupon-msg.ok { color: #2e7d32; }
@@ -720,7 +720,7 @@ function goCheckout() {
 .paypal-shield { display: flex; align-items: center; gap: 0.35rem; font-size: 0.7rem; color: #2e7d32; font-weight: 700; background: rgba(46,125,50,0.08); border-radius: 6px; padding: 0.3rem 0.5rem; }
 
 /* Checkout button */
-.btn-checkout { width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: var(--color-primary); color: #fff; border: none; border-radius: 14px; padding: 1rem; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-md); }
+.btn-checkout { width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: var(--color-primary); color: var(--color-bg-page, #fff); border: none; border-radius: 14px; padding: 1rem; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-md); }
 .btn-checkout:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
 .btn-checkout:disabled { background: var(--color-text-secondary); opacity: 0.4; color: #fff; cursor: not-allowed; box-shadow: none; }
 .checkout-note { font-size: 0.78rem; text-align: center; color: var(--color-text-secondary); margin: 0; }
@@ -728,7 +728,7 @@ function goCheckout() {
 .trust-badges { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; padding: 0.25rem 0; }
 .trust-badges span { font-size: 0.72rem; color: var(--color-text-secondary); font-weight: 600; }
 
-.btn-primary { background: var(--color-primary); color: #fff; border: none; border-radius: 12px; padding: 0.8rem 1.75rem; font-weight: 700; font-size: 1rem; cursor: pointer; }
+.btn-primary { background: var(--color-primary); color: var(--color-bg-page, #fff); border: none; border-radius: 12px; padding: 0.8rem 1.75rem; font-weight: 700; font-size: 1rem; cursor: pointer; }
 .btn-clear { display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: none; border: none; color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 600; cursor: pointer; width: 100%; padding: 0.5rem; transition: color 0.15s; opacity: 0.6; }
 .btn-clear:hover { color: #e53935; opacity: 1; }
 </style>
